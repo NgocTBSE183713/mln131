@@ -4,9 +4,9 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="bg-[#FAFAF7] min-h-screen">
+    <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-white border-b border-[#E5E5E5]">
+      <section className="bg-white/95 backdrop-blur-sm border-b border-[#E5E5E5]">
         <div className="max-w-[860px] mx-auto px-6 py-20 text-center">
           <h1 className="text-4xl font-bold text-[#1C1C1C] mb-6 leading-tight">
             ĐƯỜNG LỐI CÁCH MẠNG 1930–1945
@@ -34,7 +34,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="max-w-[860px] mx-auto px-6 py-16">
-        <h2 className="text-2xl font-bold text-[#1C1C1C] mb-8 text-center">
+        <h2 className="text-2xl font-bold text-[#FFFFFF] mb-8 text-center">
           Nội dung website
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -78,7 +78,7 @@ export default function Home() {
 
       {/* How to Use Section */}
       <section className="max-w-[860px] mx-auto px-6 py-16">
-        <h2 className="text-2xl font-bold text-[#1C1C1C] mb-8 text-center">
+        <h2 className="text-2xl font-bold text-[#FFFFFF] mb-8 text-center">
           Gợi ý sử dụng website
         </h2>
         <div className="bg-white border border-[#E5E5E5] rounded-lg p-8">

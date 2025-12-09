@@ -27,7 +27,11 @@
   }
 
   body {
-    @apply bg-[#FAFAF7] text-[#1C1C1C] antialiased;
+    @apply text-[#1C1C1C] antialiased;
+    background-image: url('/thichhohap-co-5-1024x494.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     font-size: 15px;

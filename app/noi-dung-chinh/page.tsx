@@ -65,15 +65,15 @@ export default function NoiDungChinh() {
   };
 
   return (
-    <div className="bg-[#FAFAF7] min-h-screen py-12">
-      <div className="max-w-[860px] mx-auto px-6">
+    <div className="min-h-screen py-12">
+      <div className="max-w-[860px] mx-auto px-6 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl py-8">
         <PageHeader
           title="Nội dung chính"
           description="Đường lối cách mạng Việt Nam 1930–1945 qua các giai đoạn lịch sử"
         />
 
         {/* Tab Navigation - Sticky */}
-        <div className="sticky top-[140px] md:top-[120px] z-40 bg-[#FAFAF7] py-4 -mx-6 px-6 mb-8">
+        <div className="sticky top-[140px] md:top-[120px] z-40 bg-white/95 backdrop-blur-sm py-4 mb-8 border-b border-gray-100">
           <div className="bg-white border border-[#E5E5E5] rounded-lg p-2 shadow-sm">
             <div className="flex flex-wrap gap-2">
               {tabs.map((tab) => (
@@ -83,7 +83,7 @@ export default function NoiDungChinh() {
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     activeTab === tab.id
                       ? 'bg-[#A61F2B] text-white'
-                      : 'bg-[#FAFAF7] text-[#1C1C1C] hover:bg-[#EFE8E8]'
+                      : 'bg-gray-50 text-[#1C1C1C] hover:bg-gray-100'
                   }`}
                 >
                   {tab.label}
@@ -93,18 +93,7 @@ export default function NoiDungChinh() {
           </div>
         </div>
 
-        {/* Scroll to Top Button */}
-        {showScrollTop && (
-          <button
-            onClick={scrollToTop}
-            className="fixed bottom-24 right-6 z-50 bg-[#A61F2B] text-white p-3 rounded-full shadow-lg hover:bg-[#8B1923] transition-all duration-200"
-            aria-label="Scroll to top"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
-          </button>
-        )}
+
 
         {/* Content Area */}
         <div className="mb-8">
@@ -120,6 +109,19 @@ export default function NoiDungChinh() {
         {activeTab === 'tong-khoi-nghia-1945' && <TongKhoiNghia1945 />}
         {activeTab === 'tong-ket-y-nghia' && <TongKetYNghia />}
       </div>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-24 right-6 z-50 bg-[#A61F2B] text-white p-3 rounded-full shadow-lg hover:bg-[#8B1923] transition-all duration-200"
+          aria-label="Scroll to top"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

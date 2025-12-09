@@ -19,7 +19,7 @@ const Footer = () => {
             <span className="text-black">ĐƯỜNG LỐI </span>
             <span className="text-[#A61F2B]">1930-1945</span>
           </h2>
-          <p className="italic text-lg max-w-2xl mx-auto text-black/70 backdrop-blur-sm bg-white/30 p-4">
+          <p className="italic text-lg max-w-2xl mx-auto text-black/70 p-4">
             &ldquo;Đường lối đúng đắn là nhân tố hàng đầu quyết định thắng lợi của cách mạng. 
             Giai đoạn 1930–1945 là minh chứng rõ ràng cho sức mạnh của đường lối sáng tạo 
             và nghệ thuật lãnh đạo của Đảng.&rdquo;
@@ -34,7 +34,7 @@ const Footer = () => {
         {/* Main Content */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-x-8 gap-y-12 mb-16 border-b border-black/20 pb-16">
           {/* About Section */}
-          <div className="md:col-span-5 space-y-6 backdrop-blur-sm bg-white/40 p-6">
+          <div className="md:col-span-5 space-y-6 p-6">
             <div className="heading-clean">
               <h3 className="text-lg font-medium text-black uppercase tracking-widest relative inline-block">
                 Về Website
@@ -50,7 +50,7 @@ const Footer = () => {
           </div>
           
           {/* Topics Section */}
-          <div className="md:col-span-4 backdrop-blur-sm bg-white/20 p-4">
+          <div className="md:col-span-4 p-4">
             <div className="heading-clean">
               <h4 className="text-sm uppercase tracking-wide font-medium font-bold text-black">Chủ Đề Chính</h4>
               <div className="w-6 h-[1px] bg-[#A61F2B] mt-2"></div>
@@ -75,7 +75,7 @@ const Footer = () => {
           </div>
 
           {/* Vietnamese Logo Section */}
-          <div className="md:col-span-3 flex justify-center items-center backdrop-blur-sm bg-white/20 p-4">
+          <div className="md:col-span-3 flex justify-center items-center p-4">
             <div className="text-center">
               <div className="w-32 h-20 mx-auto mb-4 bg-[#A61F2B]/10 flex items-center justify-center">
                 <Image
@@ -97,7 +97,7 @@ const Footer = () => {
         </div>
         
         {/* Bottom footer */}
-        <div className="relative backdrop-blur-sm bg-white/30 p-4">
+        <div className="relative p-4">
           <div className="flex flex-col md:flex-row justify-between items-center text-xs text-black/60">
             <div className="mb-4 md:mb-0">
               © {new Date().getFullYear()} Đường lối cách mạng 1930–1945. Website học tập lịch sử.
