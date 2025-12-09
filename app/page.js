@@ -55,12 +55,12 @@ export default function Home() {
             href="/on-tap-quiz"
             className="bg-white border border-[#E5E5E5] rounded-lg p-6 hover:border-[#A61F2B] transition-colors duration-200 group"
           >
-            <div className="text-3xl mb-4">✏️</div>
+            <div className="text-3xl mb-4">📹</div>
             <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2 group-hover:text-[#A61F2B]">
-              Ôn tập trắc nghiệm
+              Video Tổng Hợp Kiến Thức
             </h3>
             <p className="text-[#585858] text-sm leading-relaxed">
-              Kiểm tra kiến thức qua câu hỏi trắc nghiệm về các giai đoạn lịch sử
+              Xem video tổng hợp kiến thức về các giai đoạn lịch sử
             </p>
           </Link>
 
@@ -97,7 +97,7 @@ export default function Home() {
             </li>
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>
-              <span>Truy cập trang <strong>Ôn tập</strong> để kiểm tra kiến thức thông qua câu hỏi trắc nghiệm</span>
+              <span>Truy cập trang <strong>Video Tổng Hợp Kiến Thức</strong> để xem video tổng hợp kiến thức về các giai đoạn lịch sử</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>

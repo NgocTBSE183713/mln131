@@ -124,7 +124,7 @@ export default function Navbar() {
             {[
               { name: "Trang chủ", path: ROUTES.HOME },
               { name: "Nội dung chính", path: ROUTES.NOIDUNG },
-              { name: "Ôn tập", path: ROUTES.ONTAP }
+              { name: "Video Tổng Hợp", path: ROUTES.ONTAP }
             ].map((item, index) => (
               <Link
                 key={item.name}
