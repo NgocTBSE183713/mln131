@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import PageHeader from "../components/PageHeader";
@@ -369,6 +369,46 @@ const sections: Section[] = [
 export default function NoiDungChinh() {
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [activeSubSectionId, setActiveSubSectionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const scrollToHash = () => {
+      const hash = window.location.hash;
+      if (hash) {
+        const id = hash.substring(1);
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    };
+
+    // Initial scroll
+    setTimeout(scrollToHash, 100);
+
+    // Listen for hash changes
+    window.addEventListener("hashchange", scrollToHash);
+
+    // Listen for clicks on anchor links
+    const handleClick = (e: MouseEvent) => {
+      const link = (e.target as HTMLElement).closest('a');
+      if (link && link.href) {
+        const url = new URL(link.href);
+        if (url.origin === window.location.origin && 
+            url.pathname === window.location.pathname && 
+            url.hash) {
+          // Delay to allow navigation/URL update
+          setTimeout(scrollToHash, 100);
+        }
+      }
+    };
+
+    window.addEventListener("click", handleClick);
+
+    return () => {
+      window.removeEventListener("hashchange", scrollToHash);
+      window.removeEventListener("click", handleClick);
+    };
+  }, []);
 
   const handleOpenSection = (section: Section) => {
     setSelectedSection(section);
