@@ -395,7 +395,7 @@ export default function NoiDungChinh() {
             {sections.map((section, index) => {
               const isLeft = index % 2 === 0;
               return (
-                <div key={section.id} className={`relative flex flex-col md:flex-row items-center ${isLeft ? 'md:flex-row-reverse' : ''}`}>
+                <div id={section.id} key={section.id} className={`relative flex flex-col md:flex-row items-center ${isLeft ? 'md:flex-row-reverse' : ''}`}>
                   
                   {/* Timeline Dot */}
                   <div className="absolute left-4 md:left-1/2 w-4 h-4 bg-[#A61F2B] rounded-full border-4 border-[#FAFAF7] z-10 -translate-x-1/2 md:translate-x-1/2 shadow-sm" />

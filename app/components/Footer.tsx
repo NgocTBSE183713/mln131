@@ -57,10 +57,10 @@ const Footer = () => {
             </div>
             <div className="space-y-3 mt-6">
               {[
-                { name: "Đường lối tổng quát 1930–1945", path: "/noi-dung-chinh" },
-                { name: "Phong trào cách mạng 1930–1931", path: "/noi-dung-chinh" },
-                { name: "Mặt trận Dân chủ 1936–1939", path: "/noi-dung-chinh" },
-                { name: "Tổng khởi nghĩa Tháng Tám 1945", path: "/noi-dung-chinh" },
+                { name: "Phong trào 1930-1935", path: "/noi-dung-chinh#section-1" },
+                { name: "Phong trào 1936-1939", path: "/noi-dung-chinh#section-2" },
+                { name: "Phong trào 1939-1945", path: "/noi-dung-chinh#section-3" },
+                { name: "Cách mạng Tháng Tám 1945", path: "/noi-dung-chinh#section-4" },
                 { name: "Video Tổng hợp", path: "/on-tap-quiz" }
               ].map((item) => (
                 <Link
