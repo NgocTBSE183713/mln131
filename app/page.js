@@ -42,12 +42,11 @@ export default function Home() {
             href="/noi-dung-chinh"
             className="bg-white border border-[#E5E5E5] rounded-lg p-6 hover:border-[#A61F2B] transition-colors duration-200 group"
           >
-            <div className="text-3xl mb-4">📚</div>
             <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2 group-hover:text-[#A61F2B]">
               Nội dung chính
             </h3>
             <p className="text-[#585858] text-sm leading-relaxed">
-              6 chủ đề về đường lối cách mạng từ 1930–1945, chuyển đổi bằng tab
+              4 chủ đề về đường lối cách mạng từ 1930–1945
             </p>
           </Link>
           
@@ -55,7 +54,6 @@ export default function Home() {
             href="/on-tap-quiz"
             className="bg-white border border-[#E5E5E5] rounded-lg p-6 hover:border-[#A61F2B] transition-colors duration-200 group"
           >
-            <div className="text-3xl mb-4">📹</div>
             <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2 group-hover:text-[#A61F2B]">
               Video Tổng Hợp Kiến Thức
             </h3>
@@ -65,7 +63,6 @@ export default function Home() {
           </Link>
 
           <div className="bg-white border border-[#E5E5E5] rounded-lg p-6">
-            <div className="text-3xl mb-4">🤖</div>
             <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2">
               Trợ lý AI
             </h3>
@@ -85,11 +82,7 @@ export default function Home() {
           <ul className="space-y-4 text-[#1C1C1C] leading-relaxed">
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>
-              <span>Truy cập trang <strong>Nội dung chính</strong> và sử dụng tab để chuyển đổi giữa 6 chủ đề lịch sử</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>
-              <span>Đọc theo thứ tự từ "Đường lối tổng quát" đến "Tổng kết" để hiểu logic đường lối một cách hệ thống</span>
+              <span>Truy cập trang <strong>Nội dung chính</strong> và tìm hiểu về 4 chủ đề lịch sử</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>

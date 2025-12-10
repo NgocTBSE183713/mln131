@@ -61,7 +61,7 @@ const Footer = () => {
                 { name: "Phong trào cách mạng 1930–1931", path: "/noi-dung-chinh" },
                 { name: "Mặt trận Dân chủ 1936–1939", path: "/noi-dung-chinh" },
                 { name: "Tổng khởi nghĩa Tháng Tám 1945", path: "/noi-dung-chinh" },
-                { name: "Ôn tập trắc nghiệm", path: "/on-tap-quiz" }
+                { name: "Video Tổng hợp", path: "/on-tap-quiz" }
               ].map((item) => (
                 <Link
                   key={item.name}
