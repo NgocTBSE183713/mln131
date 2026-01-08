@@ -62,14 +62,17 @@ export default function Home() {
             </p>
           </Link>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2">
-              Trợ lý AI
+          <Link
+            href="/quiz-host"
+            className="bg-white border border-[#E5E5E5] rounded-lg p-6 hover:border-[#A61F2B] transition-colors duration-200 group"
+          >
+            <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2 group-hover:text-[#A61F2B]">
+              Quiz real-time
             </h3>
             <p className="text-[#585858] text-sm leading-relaxed">
-              Chatbox thông minh giúp giải đáp thắc mắc về nội dung học
+              Tạo phòng, phát câu hỏi kiểu Kahoot; người chơi tham gia tại /quiz-join
             </p>
-          </div>
+          </Link>
         </div>
       </section>
 

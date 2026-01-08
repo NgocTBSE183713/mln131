@@ -12,6 +12,8 @@ const ROUTES = {
   HOME: "/",
   NOIDUNG: "/noi-dung-chinh",
   ONTAP: "/on-tap-quiz",
+  QUIZ_HOST: "/quiz-host",
+  QUIZ_JOIN: "/quiz-join",
   THANHVIEN: "/thanh-vien"
 };
 
@@ -126,6 +128,8 @@ export default function Navbar() {
               { name: "Trang chủ", path: ROUTES.HOME },
               { name: "Nội dung chính", path: ROUTES.NOIDUNG },
               { name: "Video Tổng Hợp", path: ROUTES.ONTAP },
+              { name: "Tạo Quiz", path: ROUTES.QUIZ_HOST },
+              { name: "Tham gia", path: ROUTES.QUIZ_JOIN },
               { name: "Thành viên & Báo cáo", path: ROUTES.THANHVIEN }
             ].map((item, index) => (
               <Link
@@ -141,7 +145,7 @@ export default function Navbar() {
                     pathname === item.path ? 'w-full' : 'w-0 group-hover:w-full'
                   }`}></span>
                 </span>
-                {index < 3 && (
+                {index < 5 && (
                   <span className="absolute -right-4 top-1/2 transform -translate-y-1/2 text-black/40">/</span>
                 )}
               </Link>
@@ -196,6 +200,8 @@ export default function Navbar() {
                   { name: "Trang chủ", path: ROUTES.HOME },
                   { name: "Nội dung chính", path: ROUTES.NOIDUNG },
                   { name: "Ôn tập", path: ROUTES.ONTAP },
+                  { name: "Tạo Quiz", path: ROUTES.QUIZ_HOST },
+                  { name: "Tham gia", path: ROUTES.QUIZ_JOIN },
                   { name: "Thành viên & Báo cáo", path: ROUTES.THANHVIEN }
                 ].map((item) => (
                   <Link
