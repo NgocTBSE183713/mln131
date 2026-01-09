@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       ? pusherServer.authorizeChannel(socket_id, channel_name, presenceData)
       : pusherServer.authorizeChannel(socket_id, channel_name);
 
-    return new NextResponse(auth, { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return NextResponse.json(auth);
   } catch (error: any) {
     console.error('Pusher auth error', error);
     return NextResponse.json({ error: error?.message || 'Auth failed' }, { status: 500 });
