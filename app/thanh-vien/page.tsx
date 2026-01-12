@@ -6,10 +6,9 @@ import { Users, Bot, Sparkles, Code, Video, MessageSquare } from "lucide-react";
 
 const members = [
   { id: "SE183713", name: "Trương Bảo Ngọc", role: "Leader" },
-  { id: "SE184605", name: "Lê Huỳnh Minh Duy", role: "Member" },
-  { id: "SE184935", name: "Nguyễn Phạm Khải Nhi", role: "Member" },
-  { id: "SS180910", name: "Đỗ Trí Hiếu", role: "Member" },
-  { id: "SE184935", name: "Vũ Đức Mạnh", role: "Member" },
+  { id: "SE184410", name: "Trương Tấn Triệu", role: "Member" },
+  { id: "SE182524", name: "Trương Phúc Lộc", role: "Member" },
+ 
 ];
 
 const aiTools = [
