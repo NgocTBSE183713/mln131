@@ -59,7 +59,8 @@ const Footer = () => {
                 { name: "Quá độ lên CNXH ở Việt Nam", path: "/noi-dung-chinh?topic=1" },
                 { name: "Dân chủ và sự ra đời, phát triển của dân chủ", path: "/noi-dung-chinh?topic=2" },
                 { name: "Dân chủ xã hội chủ nghĩa", path: "/noi-dung-chinh?topic=3" },
-                { name: "Tổng kết bài học", path: "/noi-dung-chinh#tong-ket" }
+                { name: "Tổng kết bài học", path: "/noi-dung-chinh#tong-ket" },
+                { name: "Video bài giảng", path: "/on-tap-quiz" }
               ].map((item) => (
                 <Link
                   key={item.name}
