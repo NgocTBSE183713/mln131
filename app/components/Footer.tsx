@@ -56,11 +56,10 @@ const Footer = () => {
             </div>
             <div className="space-y-3 mt-6">
               {[
-                { name: "Thời kỳ quá độ lên CNXH", path: "/chuong-3#qua-do" },
-                { name: "Bỏ qua chế độ Tư bản", path: "/chuong-3#bo-qua-tbn" },
-                { name: "Lịch sử các nền dân chủ", path: "/chuong-4#lich-su-dan-chu" },
-                { name: "Bản chất Dân chủ XHCN", path: "/chuong-4#ban-chat" },
-                { name: "Tầm nhìn Việt Nam 2045", path: "/dinh-huong-2045" }
+                { name: "Quá độ lên CNXH ở Việt Nam", path: "/noi-dung-chinh?topic=1" },
+                { name: "Dân chủ và sự ra đời, phát triển của dân chủ", path: "/noi-dung-chinh?topic=2" },
+                { name: "Dân chủ xã hội chủ nghĩa", path: "/noi-dung-chinh?topic=3" },
+                { name: "Tổng kết bài học", path: "/noi-dung-chinh#tong-ket" }
               ].map((item) => (
                 <Link
                   key={item.name}
