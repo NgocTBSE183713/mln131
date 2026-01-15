@@ -5,6 +5,16 @@ import { getRoom } from '@/lib/gameStore';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
+// Đảm bảo chỉ một advance chạy tại một thời điểm cho mỗi room
+const advanceLocks = new Map<string, Promise<any>>();
+
+function runExclusive<T>(code: string, fn: () => Promise<T>): Promise<T> {
+  const prev = advanceLocks.get(code) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  advanceLocks.set(code, next.catch(() => {}));
+  return next;
+}
+
 export async function POST(req: Request, ctx: ParamsPromise) {
   try {
     const { hostSecret, code: codeInBody } = await req.json();
@@ -17,7 +27,7 @@ export async function POST(req: Request, ctx: ParamsPromise) {
       return NextResponse.json({ error: 'Pusher env missing (PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER, NEXT_PUBLIC_PUSHER_KEY, NEXT_PUBLIC_PUSHER_CLUSTER)' }, { status: 500 });
     }
 
-    const precheck = advanceQuestionWithAuth(code, hostSecret);
+    const precheck = await runExclusive(code, async () => advanceQuestionWithAuth(code, hostSecret));
     if ('error' in precheck) {
       return NextResponse.json({ error: precheck.error }, { status: precheck.status });
     }
@@ -55,7 +65,7 @@ function leaderboardList(board: Record<string, { name: string; score: number; la
     .sort((a, b) => b.score - a.score || (a.lastAnswerAt || 0) - (b.lastAnswerAt || 0));
 }
 
-function advanceQuestionWithAuth(code: string, hostSecret: string) {
+async function advanceQuestionWithAuth(code: string, hostSecret: string) {
   const room = getRoom(code.toUpperCase());
   if (!room) return { error: 'Room not found', status: 404 } as const;
   if (room.hostSecret !== hostSecret) return { error: 'Unauthorized host', status: 403 } as const;

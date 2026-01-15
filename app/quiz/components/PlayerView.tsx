@@ -335,9 +335,7 @@ export default function PlayerView() {
                   ? isCorrectOpt
                     ? 'bg-green-500'
                     : 'bg-red-500'
-                  : isSelected
-                    ? 'bg-red-500'
-                    : PLAYER_COLORS[idx % PLAYER_COLORS.length]
+                  : PLAYER_COLORS[idx % PLAYER_COLORS.length]
               } ${disabled ? 'opacity-90 cursor-default' : ''}`}
             >
               <div className="flex flex-col items-center justify-center text-white">

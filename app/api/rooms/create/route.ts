@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       explanation: q.explanation,
     }));
 
-    const room = createRoom(normalized);
+    const room = await createRoom(normalized);
 
     return NextResponse.json({
       roomCode: room.roomCode,

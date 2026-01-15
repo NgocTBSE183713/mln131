@@ -4,6 +4,16 @@ import { pusherServer, pusherConfigured } from '@/lib/pusher';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
+// Đảm bảo xử lý đáp án theo thứ tự cho từng phòng
+const answerLocks = new Map<string, Promise<any>>();
+
+function runExclusive<T>(code: string, fn: () => Promise<T>): Promise<T> {
+  const prev = answerLocks.get(code) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  answerLocks.set(code, next.catch(() => {}));
+  return next;
+}
+
 export async function POST(req: Request, ctx: ParamsPromise) {
   try {
     const { playerId, playerName, answerIndex, code: codeInBody } = await req.json();
@@ -18,12 +28,14 @@ export async function POST(req: Request, ctx: ParamsPromise) {
       return NextResponse.json({ error: 'Pusher env missing (PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER, NEXT_PUBLIC_PUSHER_KEY, NEXT_PUBLIC_PUSHER_CLUSTER)' }, { status: 500 });
     }
 
-    const { room, isCorrect, alreadyAnswered, tooLate } = recordAnswer({
-      roomCode: code,
-      playerId,
-      playerName,
-      answerIndex,
-    });
+    const { room, isCorrect, alreadyAnswered, tooLate } = await runExclusive(code, async () =>
+      recordAnswer({
+        roomCode: code,
+        playerId,
+        playerName,
+        answerIndex,
+      })
+    );
 
     if (alreadyAnswered) {
       return NextResponse.json({ ok: false, error: 'Already answered this question' }, { status: 400 });

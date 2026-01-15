@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { promises as fs } from 'fs';
+import path from 'path';
 import { QuizQuestion, RoomState } from './quizTypes';
 
 // Persist rooms across route reloads in dev/serverless contexts
@@ -8,9 +10,57 @@ if (!globalStore.__quizRooms) {
 }
 const rooms = globalStore.__quizRooms;
 
+// Optional file persistence to survive dev server reloads
+// Disable by default on Vercel/production to avoid fs latency/errors
+const enableDiskPersistence =
+  process.env.QUIZ_PERSIST_FILE === '1' ||
+  (process.env.NODE_ENV !== 'production' && !process.env.VERCEL);
+const persistPath = path.join(process.cwd(), '.next', 'cache', 'quiz-rooms.json');
+let loaded = false;
+
+async function loadRoomsFromDisk() {
+  if (!enableDiskPersistence) return;
+  if (loaded) return;
+  loaded = true;
+  try {
+    const raw = await fs.readFile(persistPath, 'utf8');
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) {
+      data.forEach((item) => {
+        if (item?.roomCode) {
+          const room: RoomState = {
+            ...item,
+            players: item.players || {},
+            leaderboard: item.leaderboard || {},
+            answeredThisRound: new Set<string>(item.answeredThisRound || []),
+          };
+          rooms.set(room.roomCode, room);
+        }
+      });
+    }
+  } catch {
+    // ignore if not found
+  }
+}
+
+async function saveRoomsToDisk() {
+  if (!enableDiskPersistence) return;
+  try {
+    const arr = Array.from(rooms.values()).map((room) => ({
+      ...room,
+      answeredThisRound: Array.from(room.answeredThisRound || []),
+    }));
+    await fs.mkdir(path.dirname(persistPath), { recursive: true });
+    await fs.writeFile(persistPath, JSON.stringify(arr), 'utf8');
+  } catch (err) {
+    console.warn('Persist rooms failed', err);
+  }
+}
+
 const QUESTION_DURATION_MS = 15_000;
 
-export function createRoom(quiz: QuizQuestion[]): RoomState {
+export async function createRoom(quiz: QuizQuestion[]): Promise<RoomState> {
+  await loadRoomsFromDisk();
   if (!Array.isArray(quiz) || quiz.length === 0) {
     throw new Error('Quiz data is empty');
   }
@@ -35,11 +85,17 @@ export function createRoom(quiz: QuizQuestion[]): RoomState {
   };
 
   rooms.set(roomCode, room);
+  await saveRoomsToDisk();
   return room;
 }
 
 export function getRoom(roomCode: string): RoomState | undefined {
   if (!roomCode) return undefined;
+  // Lazy load from disk if needed
+  if (enableDiskPersistence && !loaded) {
+    // fire and forget
+    loadRoomsFromDisk();
+  }
   return rooms.get(roomCode.toUpperCase());
 }
 
@@ -54,9 +110,14 @@ export function assertRoom(roomCode: string): RoomState {
 export function resetRoom(roomCode: string): void {
   if (!roomCode) return;
   rooms.delete(roomCode.toUpperCase());
+  if (enableDiskPersistence) {
+    // fire and forget
+    saveRoomsToDisk();
+  }
 }
 
-export function advanceQuestion(roomCode: string): { room: RoomState; question?: QuizQuestion } {
+export async function advanceQuestion(roomCode: string): Promise<{ room: RoomState; question?: QuizQuestion }> {
+  await loadRoomsFromDisk();
   const room = assertRoom(roomCode);
   if (room.status === 'finished') {
     return { room };
@@ -75,15 +136,17 @@ export function advanceQuestion(roomCode: string): { room: RoomState; question?:
   room.questionDeadline = Date.now() + QUESTION_DURATION_MS;
   const question = room.quiz[room.currentQuestionIndex];
 
+  await saveRoomsToDisk();
   return { room, question };
 }
 
-export function recordAnswer(options: {
+export async function recordAnswer(options: {
   roomCode: string;
   playerId: string;
   playerName: string;
   answerIndex: number;
-}): { room: RoomState; isCorrect: boolean; alreadyAnswered?: boolean; tooLate?: boolean } {
+}): Promise<{ room: RoomState; isCorrect: boolean; alreadyAnswered?: boolean; tooLate?: boolean }> {
+  await loadRoomsFromDisk();
   const { roomCode, playerId, playerName, answerIndex } = options;
   const room = assertRoom(roomCode);
 
@@ -113,6 +176,7 @@ export function recordAnswer(options: {
     lastAnswerAt: Date.now(),
   };
 
+  await saveRoomsToDisk();
   return { room, isCorrect };
 }
 
