@@ -132,6 +132,46 @@ export async function createRoom(quiz: QuizQuestion[]): Promise<RoomState> {
   return room;
 }
 
+export async function ensureRoom(options: {
+  roomCode: string;
+  hostSecret: string;
+  quiz: QuizQuestion[];
+}): Promise<RoomState> {
+  const { roomCode, hostSecret, quiz } = options;
+  if (!roomCode || !hostSecret) {
+    throw new Error('Room code or host secret missing');
+  }
+  if (!Array.isArray(quiz) || quiz.length === 0) {
+    throw new Error('Quiz data is empty');
+  }
+
+  const code = roomCode.toUpperCase();
+  const existing = await getRoomAsync(code);
+  if (existing) {
+    if (existing.hostSecret !== hostSecret) {
+      throw new Error('Unauthorized host');
+    }
+    return existing;
+  }
+
+  const room: RoomState = {
+    roomCode: code,
+    hostSecret,
+    quiz,
+    currentQuestionIndex: -1,
+    status: 'lobby',
+    leaderboard: {},
+    players: {},
+    answeredThisRound: new Set<string>(),
+    questionDeadline: undefined,
+    questionDurationMs: undefined,
+  };
+
+  rooms.set(code, room);
+  await persistRoom(room);
+  return room;
+}
+
 export function getRoom(roomCode: string): RoomState | undefined {
   if (!roomCode) return undefined;
   // Lazy load from disk if needed

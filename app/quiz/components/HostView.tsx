@@ -42,6 +42,7 @@ export default function HostView() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const resultTimerRef = useRef<NodeJS.Timeout | null>(null);
   const resultTriggeredRef = useRef(false);
+  const rehydrateAttemptedRef = useRef(false);
 
   const quizPayload = useMemo<QuizQuestion[]>(
     () => QUESTIONS.map((q) => ({ question: q.text, options: q.options, correctIndex: q.correctAnswerIndex })),
@@ -61,6 +62,7 @@ export default function HostView() {
     setShowingResult(false);
     setCorrectIndex(null);
     resultTriggeredRef.current = false;
+    rehydrateAttemptedRef.current = false;
     if (resultTimerRef.current) {
       clearTimeout(resultTimerRef.current);
       resultTimerRef.current = null;
@@ -91,6 +93,24 @@ export default function HostView() {
     }
   }, [quizPayload]);
 
+  const rehydrateRoom = useCallback(
+    async (code: string, secret: string) => {
+      try {
+        const res = await fetch('/api/rooms/rehydrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomCode: code, hostSecret: secret, quiz: quizPayload }),
+        });
+        if (!res.ok) return false;
+        localStorage.setItem('quiz-host-room', JSON.stringify({ roomCode: code, hostSecret: secret }));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [quizPayload]
+  );
+
   useEffect(() => {
     const restoreRoom = async () => {
       try {
@@ -108,6 +128,19 @@ export default function HostView() {
               setPlayers(Array.isArray(data.players) ? data.players : []);
               setLoading(false);
               return;
+            }
+            if (res.status === 404) {
+              const rehydrated = await rehydrateRoom(parsed.roomCode, parsed.hostSecret);
+              if (rehydrated) {
+                setRoomCode(parsed.roomCode);
+                setHostSecret(parsed.hostSecret);
+                setStatus('lobby');
+                setPlayerCount(0);
+                setPlayers([]);
+                setError(null);
+                setLoading(false);
+                return;
+              }
             }
           }
         }
@@ -149,6 +182,18 @@ export default function HostView() {
           // Cập nhật status
           if (data.status) {
             setStatus(data.status);
+          }
+        } else if (res.status === 404 && hostSecret && !rehydrateAttemptedRef.current) {
+          rehydrateAttemptedRef.current = true;
+          const rehydrated = await rehydrateRoom(roomCode, hostSecret);
+          if (!rehydrated) {
+            setError('Phòng đã mất. Vui lòng làm mới mã phòng.');
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
+          } else {
+            setError(null);
           }
         }
       } catch (err) {
@@ -229,19 +274,33 @@ export default function HostView() {
         pollRef.current = null;
       }
     };
-  }, [roomCode]);
+  }, [roomCode, hostSecret, rehydrateRoom]);
 
   const startNextQuestion = async () => {
     if (!roomCode || !hostSecret) return;
     setError(null);
     setShowingResult(false);
     setCorrectIndex(null);
-    const res = await fetch(`/api/rooms/${roomCode}/next-question`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostSecret, code: roomCode }),
-    });
-    const data = await res.json();
+    const sendRequest = async () => {
+      const response = await fetch(`/api/rooms/${roomCode}/next-question`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostSecret, code: roomCode }),
+      });
+      const payload = await response.json();
+      return { response, payload };
+    };
+
+    let { response: res, payload: data } = await sendRequest();
+    if (!res.ok && res.status === 404) {
+      const rehydrated = await rehydrateRoom(roomCode, hostSecret);
+      if (rehydrated) {
+        const retry = await sendRequest();
+        res = retry.response;
+        data = retry.payload;
+      }
+    }
+
     if (!res.ok) {
       setError(data?.error || 'Không gửi được câu hỏi');
       return;

@@ -41,6 +41,7 @@ export default function PlayerView() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const lastQuestionIndexRef = useRef<number>(-1);
   const showResultTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rejoinAttemptedRef = useRef(false);
 
   // Khi hết giờ hoặc host kết thúc, hiển thị kết quả (tô xanh đáp án đúng, đỏ đáp án sai) trong 3s
   useEffect(() => {
@@ -125,6 +126,24 @@ export default function PlayerView() {
               timerRef.current = null;
             }
           }
+        } else if (res.status === 404) {
+          if (!rejoinAttemptedRef.current && playerId && playerName) {
+            rejoinAttemptedRef.current = true;
+            const joinRes = await fetch(`/api/rooms/${code}/join`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ playerId, playerName, code }),
+            });
+            if (joinRes.ok) {
+              setError(null);
+              return;
+            }
+          }
+          setError('Phòng không tồn tại hoặc đã hết hạn. Vui lòng kiểm tra mã phòng.');
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
         }
       } catch (err) {
         console.warn('Poll room state failed', err);
@@ -206,6 +225,7 @@ export default function PlayerView() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    rejoinAttemptedRef.current = false;
     if (!roomCodeInput.trim() || !playerName.trim()) {
       setError('Nhập mã phòng và tên');
       return;
