@@ -353,10 +353,10 @@ export default function HostView() {
           {/* Hạng 2 */}
           {top3[1] && (
             <div className="flex flex-col items-center">
-              <div className="w-20 h-20 mb-2 text-3xl font-black text-white rounded-full shadow-lg bg-gray-400/80 flex items-center justify-center">
+              <div className="flex items-center justify-center w-20 h-20 mb-2 text-3xl font-black text-white rounded-full shadow-lg bg-gray-400/80">
                 {top3[1].name.slice(0, 2).toUpperCase()}
               </div>
-              <div className="w-24 h-32 bg-gray-300 rounded-t-xl flex flex-col items-center justify-center shadow-lg">
+              <div className="flex flex-col items-center justify-center w-24 h-32 bg-gray-300 shadow-lg rounded-t-xl">
                 <span className="text-4xl">🥈</span>
                 <span className="font-bold text-gray-700">{top3[1].name}</span>
                 <span className="text-lg font-black text-gray-600">{top3[1].score}</span>
@@ -367,10 +367,10 @@ export default function HostView() {
           {/* Hạng 1 */}
           {top3[0] && (
             <div className="flex flex-col items-center -mt-8">
-              <div className="w-24 h-24 mb-2 text-4xl font-black text-white rounded-full shadow-lg bg-yellow-500 flex items-center justify-center animate-bounce">
+              <div className="flex items-center justify-center w-24 h-24 mb-2 text-4xl font-black text-white bg-yellow-500 rounded-full shadow-lg animate-bounce">
                 {top3[0].name.slice(0, 2).toUpperCase()}
               </div>
-              <div className="w-28 h-44 bg-yellow-400 rounded-t-xl flex flex-col items-center justify-center shadow-lg">
+              <div className="flex flex-col items-center justify-center bg-yellow-400 shadow-lg w-28 h-44 rounded-t-xl">
                 <span className="text-5xl">🥇</span>
                 <span className="text-lg font-bold text-yellow-900">{top3[0].name}</span>
                 <span className="text-2xl font-black text-yellow-800">{top3[0].score}</span>
@@ -381,10 +381,10 @@ export default function HostView() {
           {/* Hạng 3 */}
           {top3[2] && (
             <div className="flex flex-col items-center">
-              <div className="w-16 h-16 mb-2 text-2xl font-black text-white rounded-full shadow-lg bg-orange-400/80 flex items-center justify-center">
+              <div className="flex items-center justify-center w-16 h-16 mb-2 text-2xl font-black text-white rounded-full shadow-lg bg-orange-400/80">
                 {top3[2].name.slice(0, 2).toUpperCase()}
               </div>
-              <div className="w-20 h-24 bg-orange-300 rounded-t-xl flex flex-col items-center justify-center shadow-lg">
+              <div className="flex flex-col items-center justify-center w-20 h-24 bg-orange-300 shadow-lg rounded-t-xl">
                 <span className="text-3xl">🥉</span>
                 <span className="text-sm font-bold text-orange-700">{top3[2].name}</span>
                 <span className="font-black text-orange-600">{top3[2].score}</span>
@@ -393,9 +393,9 @@ export default function HostView() {
           )}
         </div>
 
-        <div className="w-full max-w-md p-4 bg-white/90 rounded-xl shadow-lg">
+        <div className="w-full max-w-md p-4 shadow-lg bg-white/90 rounded-xl">
           <div className="mb-2 text-lg font-bold text-gray-800">Bảng xếp hạng đầy đủ</div>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 overflow-y-auto max-h-48">
             {leaderboard.map((entry, idx) => (
               <div key={entry.id} className="flex items-center justify-between p-2 bg-gray-100 rounded-lg">
                 <div className="flex items-center gap-2">
@@ -410,7 +410,7 @@ export default function HostView() {
 
         <button
           onClick={createRoom}
-          className="px-8 py-4 mt-8 text-xl font-black text-white transition-all rounded-xl shadow-lg bg-brand-purple hover:scale-105"
+          className="px-8 py-4 mt-8 text-xl font-black text-white transition-all shadow-lg rounded-xl bg-brand-purple hover:scale-105"
         >
           Chơi lại
         </button>
@@ -488,8 +488,8 @@ export default function HostView() {
           <div className="flex items-center justify-between p-4 bg-white shadow rounded-xl">
             <div className="text-lg font-bold text-gray-600">Đã trả lời: {answeredCount}/{playerCount}</div>
             <div className="flex -space-x-2">
-              {players.slice(0, 6).map((name) => (
-                <div key={name} className="flex items-center justify-center w-10 h-10 text-sm font-bold text-white rounded-full shadow bg-brand-purple">{name.slice(0,2).toUpperCase()}</div>
+              {players.slice(0, 6).map((name, idx) => (
+                <div key={`${name}-${idx}`} className="flex items-center justify-center w-10 h-10 text-sm font-bold text-white rounded-full shadow bg-brand-purple">{name.slice(0,2).toUpperCase()}</div>
               ))}
             </div>
           </div>
@@ -499,8 +499,8 @@ export default function HostView() {
           <div className="text-4xl font-black text-brand-purple">Đang chờ người chơi</div>
           <div className="text-gray-500">Khi đủ người, bấm "Bắt đầu" để gửi câu hỏi.</div>
           <div className="flex flex-wrap justify-center max-w-xl gap-3 mt-4">
-            {players.map((name) => (
-              <div key={name} className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-full shadow">{name}</div>
+            {players.map((name, idx) => (
+              <div key={`${name}-${idx}`} className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-full shadow">{name}</div>
             ))}
           </div>
         </main>
@@ -515,7 +515,7 @@ export default function HostView() {
             {leaderboard.map((entry, idx) => (
               <div key={entry.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 font-bold text-center text-white rounded-full bg-brand-purple">{idx + 1}</span>
+                  <span className="flex items-center justify-center w-8 h-8 font-bold text-center bg-white border-2 rounded-full text-brand-purple border-brand-purple">{idx + 1}</span>
                   <span className="font-bold text-gray-800">{entry.name}</span>
                 </div>
                 <span className="text-xl font-black text-brand-purple">{entry.score}</span>

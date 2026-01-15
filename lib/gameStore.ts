@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { Redis } from '@upstash/redis';
 import { QuizQuestion, RoomState } from './quizTypes';
 
 // Persist rooms across route reloads in dev/serverless contexts
@@ -17,6 +18,37 @@ const enableDiskPersistence =
   (process.env.NODE_ENV !== 'production' && !process.env.VERCEL);
 const persistPath = path.join(process.cwd(), '.next', 'cache', 'quiz-rooms.json');
 let loaded = false;
+
+// Optional remote persistence (Upstash Redis) for serverless environments
+const enableRemotePersistence =
+  !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+const redis = enableRemotePersistence
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL as string,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN as string,
+    })
+  : null;
+const ROOM_TTL_SECONDS = Number(process.env.QUIZ_ROOM_TTL_SECONDS || 60 * 60);
+
+function roomKey(code: string) {
+  return `quiz:room:${code.toUpperCase()}`;
+}
+
+function serializeRoom(room: RoomState) {
+  return {
+    ...room,
+    answeredThisRound: Array.from(room.answeredThisRound || []),
+  };
+}
+
+function hydrateRoom(item: any): RoomState {
+  return {
+    ...item,
+    players: item.players || {},
+    leaderboard: item.leaderboard || {},
+    answeredThisRound: new Set<string>(item.answeredThisRound || []),
+  } as RoomState;
+}
 
 async function loadRoomsFromDisk() {
   if (!enableDiskPersistence) return;
@@ -57,6 +89,16 @@ async function saveRoomsToDisk() {
   }
 }
 
+async function saveRoomToRemote(room: RoomState) {
+  if (!redis) return;
+  await redis.set(roomKey(room.roomCode), serializeRoom(room), { ex: ROOM_TTL_SECONDS });
+}
+
+async function deleteRoomRemote(roomCode: string) {
+  if (!redis) return;
+  await redis.del(roomKey(roomCode));
+}
+
 const QUESTION_DURATION_MS = 15_000;
 
 export async function createRoom(quiz: QuizQuestion[]): Promise<RoomState> {
@@ -86,6 +128,7 @@ export async function createRoom(quiz: QuizQuestion[]): Promise<RoomState> {
 
   rooms.set(roomCode, room);
   await saveRoomsToDisk();
+  await saveRoomToRemote(room);
   return room;
 }
 
@@ -99,26 +142,54 @@ export function getRoom(roomCode: string): RoomState | undefined {
   return rooms.get(roomCode.toUpperCase());
 }
 
-export function assertRoom(roomCode: string): RoomState {
-  const room = getRoom(roomCode);
+export async function getRoomAsync(roomCode: string): Promise<RoomState | undefined> {
+  if (!roomCode) return undefined;
+  const code = roomCode.toUpperCase();
+  const cached = rooms.get(code);
+  if (cached) return cached;
+
+  if (enableRemotePersistence) {
+    const data = await redis?.get(roomKey(code));
+    if (data) {
+      const room = hydrateRoom(typeof data === 'string' ? JSON.parse(data) : data);
+      rooms.set(code, room);
+      return room;
+    }
+  }
+
+  if (enableDiskPersistence && !loaded) {
+    await loadRoomsFromDisk();
+  }
+  return rooms.get(code);
+}
+
+export async function assertRoom(roomCode: string): Promise<RoomState> {
+  const room = await getRoomAsync(roomCode);
   if (!room) {
     throw new Error('Room not found');
   }
   return room;
 }
 
-export function resetRoom(roomCode: string): void {
+export async function resetRoom(roomCode: string): Promise<void> {
   if (!roomCode) return;
   rooms.delete(roomCode.toUpperCase());
   if (enableDiskPersistence) {
     // fire and forget
     saveRoomsToDisk();
   }
+  await deleteRoomRemote(roomCode.toUpperCase());
+}
+
+export async function persistRoom(room: RoomState): Promise<void> {
+  if (!room) return;
+  await saveRoomsToDisk();
+  await saveRoomToRemote(room);
 }
 
 export async function advanceQuestion(roomCode: string): Promise<{ room: RoomState; question?: QuizQuestion }> {
   await loadRoomsFromDisk();
-  const room = assertRoom(roomCode);
+  const room = await assertRoom(roomCode);
   if (room.status === 'finished') {
     return { room };
   }
@@ -136,7 +207,7 @@ export async function advanceQuestion(roomCode: string): Promise<{ room: RoomSta
   room.questionDeadline = Date.now() + QUESTION_DURATION_MS;
   const question = room.quiz[room.currentQuestionIndex];
 
-  await saveRoomsToDisk();
+  await persistRoom(room);
   return { room, question };
 }
 
@@ -148,7 +219,7 @@ export async function recordAnswer(options: {
 }): Promise<{ room: RoomState; isCorrect: boolean; alreadyAnswered?: boolean; tooLate?: boolean }> {
   await loadRoomsFromDisk();
   const { roomCode, playerId, playerName, answerIndex } = options;
-  const room = assertRoom(roomCode);
+  const room = await assertRoom(roomCode);
 
   if (room.status !== 'in-progress') {
     throw new Error('Room is not accepting answers');
@@ -176,7 +247,7 @@ export async function recordAnswer(options: {
     lastAnswerAt: Date.now(),
   };
 
-  await saveRoomsToDisk();
+  await persistRoom(room);
   return { room, isCorrect };
 }
 

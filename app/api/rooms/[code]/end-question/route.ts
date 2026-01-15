@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRoom } from '@/lib/gameStore';
+import { getRoomAsync, persistRoom } from '@/lib/gameStore';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
@@ -12,7 +12,7 @@ export async function POST(req: Request, ctx: ParamsPromise) {
     const code = (codeInBody || resolved?.code)?.toUpperCase();
     if (!code) return NextResponse.json({ error: 'Room code missing' }, { status: 400 });
 
-    const room = getRoom(code);
+    const room = await getRoomAsync(code);
     if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     if (room.hostSecret !== hostSecret) return NextResponse.json({ error: 'Unauthorized host' }, { status: 403 });
 
@@ -20,6 +20,7 @@ export async function POST(req: Request, ctx: ParamsPromise) {
     if (room.questionDeadline && room.questionDeadline > Date.now()) {
       room.questionDeadline = Date.now() - 1;
     }
+    await persistRoom(room);
 
     return NextResponse.json({ ok: true, message: 'Question ended' });
   } catch (error: any) {

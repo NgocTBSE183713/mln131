@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { advanceQuestion } from '@/lib/gameStore';
 import { pusherServer, pusherConfigured } from '@/lib/pusher';
-import { getRoom } from '@/lib/gameStore';
+import { getRoomAsync } from '@/lib/gameStore';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
@@ -66,7 +66,7 @@ function leaderboardList(board: Record<string, { name: string; score: number; la
 }
 
 async function advanceQuestionWithAuth(code: string, hostSecret: string) {
-  const room = getRoom(code.toUpperCase());
+  const room = await getRoomAsync(code.toUpperCase());
   if (!room) return { error: 'Room not found', status: 404 } as const;
   if (room.hostSecret !== hostSecret) return { error: 'Unauthorized host', status: 403 } as const;
   return advanceQuestion(code.toUpperCase());

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.34.0",
+    "@upstash/redis": "^1.36.1",
     "eslint": "9.39.1",
     "eslint-config-next": "16.0.8",
     "framer-motion": "^12.23.25",
