@@ -413,7 +413,17 @@ export default function HostView() {
 
   if (!pusherClient) return <div className="flex items-center justify-center min-h-screen text-center text-red-600">Thiếu cấu hình Pusher (NEXT_PUBLIC_PUSHER_KEY / NEXT_PUBLIC_PUSHER_CLUSTER).</div>;
   if (loading) return <div className="flex items-center justify-center min-h-screen text-xl">Đang tạo phòng...</div>;
-  if (error) return <div className="flex items-center justify-center min-h-screen text-red-600">{error}</div>;
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-6 p-8 bg-gray-100">
+      <div className="text-xl font-bold text-red-600">{error}</div>
+      <button
+        onClick={createRoom}
+        className="px-8 py-4 text-lg font-black text-white transition-all shadow-lg rounded-xl bg-brand-purple hover:scale-105"
+      >
+        🔄 Làm mới mã phòng
+      </button>
+    </div>
+  );
   if (!roomCode) return <div className="flex items-center justify-center min-h-screen text-xl">Không có phòng</div>;
 
   // Màn hình tuyên dương khi kết thúc
