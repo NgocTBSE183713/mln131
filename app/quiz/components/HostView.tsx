@@ -111,23 +111,6 @@ export default function HostView() {
     [quizPayload]
   );
 
-  const fetchRoomState = useCallback(async (code: string) => {
-    const res = await fetch(`/api/rooms/${code}/state`);
-    const data = await res.json();
-    if (res.ok) {
-      setStatus(data.status ?? 'lobby');
-      setPlayerCount(data.playerCount ?? 0);
-      setPlayers(Array.isArray(data.players) ? data.players : []);
-      if (Array.isArray(data.leaderboard)) {
-        setLeaderboard(data.leaderboard);
-      }
-      if (typeof data.answeredCount === 'number') {
-        setAnsweredCount(data.answeredCount);
-      }
-    }
-    return { ok: res.ok, status: res.status };
-  }, []);
-
   useEffect(() => {
     const restoreRoom = async () => {
       try {
@@ -135,28 +118,29 @@ export default function HostView() {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed?.roomCode && parsed?.hostSecret) {
-            const state = await fetchRoomState(parsed.roomCode);
-            if (state.ok) {
+            const res = await fetch(`/api/rooms/${parsed.roomCode}/state`);
+            const data = await res.json();
+            if (res.ok) {
               setRoomCode(parsed.roomCode);
               setHostSecret(parsed.hostSecret);
+              setStatus(data.status ?? 'lobby');
+              setPlayerCount(data.playerCount ?? 0);
+              setPlayers(Array.isArray(data.players) ? data.players : []);
               setLoading(false);
               return;
             }
-            if (state.status === 404) {
+            if (res.status === 404) {
               const rehydrated = await rehydrateRoom(parsed.roomCode, parsed.hostSecret);
               if (rehydrated) {
                 setRoomCode(parsed.roomCode);
                 setHostSecret(parsed.hostSecret);
+                setStatus('lobby');
+                setPlayerCount(0);
+                setPlayers([]);
                 setError(null);
-                const refreshed = await fetchRoomState(parsed.roomCode);
-                if (refreshed.ok) {
-                  setLoading(false);
-                  return;
-                }
+                setLoading(false);
+                return;
               }
-              setError('Phòng đã mất. Vui lòng bấm "Làm mới mã" để tạo phòng mới.');
-              setLoading(false);
-              return;
             }
           }
         }
@@ -164,12 +148,12 @@ export default function HostView() {
         console.warn('Restore room failed', err);
       }
 
-      // Nếu không có phòng đã lưu thì tạo phòng mới
+      // Nếu không khôi phục được thì tạo phòng mới
       createRoom();
     };
 
     restoreRoom();
-  }, [createRoom, fetchRoomState, rehydrateRoom]);
+  }, [createRoom]);
 
   useEffect(() => {
     if (!roomCode || !pusherClient) return;

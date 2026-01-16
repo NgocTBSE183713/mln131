@@ -132,7 +132,7 @@ export async function createRoom(quiz: QuizQuestion[]): Promise<RoomState> {
   return room;
 }
 
-export async function rehydrateRoom(options: {
+export async function ensureRoom(options: {
   roomCode: string;
   hostSecret: string;
   quiz: QuizQuestion[];
@@ -154,7 +154,22 @@ export async function rehydrateRoom(options: {
     return existing;
   }
 
-  throw new Error('Room not found');
+  const room: RoomState = {
+    roomCode: code,
+    hostSecret,
+    quiz,
+    currentQuestionIndex: -1,
+    status: 'lobby',
+    leaderboard: {},
+    players: {},
+    answeredThisRound: new Set<string>(),
+    questionDeadline: undefined,
+    questionDurationMs: undefined,
+  };
+
+  rooms.set(code, room);
+  await persistRoom(room);
+  return room;
 }
 
 export function getRoom(roomCode: string): RoomState | undefined {

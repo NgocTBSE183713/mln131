@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { rehydrateRoom } from '@/lib/gameStore';
+import { ensureRoom } from '@/lib/gameStore';
 import { QuizQuestion } from '@/lib/quizTypes';
 
 export async function POST(req: Request) {
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       explanation: q.explanation,
     }));
 
-    const room = await rehydrateRoom({ roomCode, hostSecret, quiz: normalized });
+    const room = await ensureRoom({ roomCode, hostSecret, quiz: normalized });
 
     return NextResponse.json({
       roomCode: room.roomCode,
@@ -29,8 +29,6 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('Rehydrate room error', error);
-    const message = error?.message || 'Internal error';
-    const status = message === 'Room not found' ? 404 : message === 'Unauthorized host' ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: error?.message || 'Internal error' }, { status: 500 });
   }
 }
