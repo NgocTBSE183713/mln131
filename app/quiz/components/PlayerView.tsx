@@ -42,6 +42,7 @@ export default function PlayerView() {
   const lastQuestionIndexRef = useRef<number>(-1);
   const showResultTimerRef = useRef<NodeJS.Timeout | null>(null);
   const rejoinAttemptedRef = useRef(false);
+  const missingRoomSinceRef = useRef<number | null>(null);
 
   // Khi hết giờ hoặc host kết thúc, hiển thị kết quả (tô xanh đáp án đúng, đỏ đáp án sai) trong 3s
   useEffect(() => {
@@ -136,13 +137,17 @@ export default function PlayerView() {
             });
             if (joinRes.ok) {
               setError(null);
+              missingRoomSinceRef.current = null;
               return;
             }
           }
-          setError('Phòng không tồn tại hoặc đã hết hạn. Vui lòng kiểm tra mã phòng.');
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
+          if (!missingRoomSinceRef.current) {
+            missingRoomSinceRef.current = Date.now();
+          }
+          const elapsed = Date.now() - (missingRoomSinceRef.current || Date.now());
+          const isPusherConnected = (pusherClient as any)?.connection?.state === 'connected';
+          if (elapsed > 5000 && !isPusherConnected) {
+            setError('Đang chờ host khôi phục phòng... Nếu quá lâu, hãy kiểm tra mã phòng.');
           }
         }
       } catch (err) {
@@ -165,7 +170,11 @@ export default function PlayerView() {
     if (!joined || !roomCodeInput || !playerId || !pusherClient) return;
 
     const code = roomCodeInput.toUpperCase();
-    const channel = pusherClient.subscribe(`presence-${code}`);
+    const channel = (pusherClient as any).subscribe(`presence-${code}`, {
+      auth: {
+        params: { user_id: playerId, user_name: playerName || playerId },
+      },
+    });
 
     const onQuestion = (payload: QuestionEvent) => {
       setStatus('in-progress');
@@ -174,6 +183,7 @@ export default function PlayerView() {
       setSelectedAnswer(null);
       setShowingResult(false);
       setCorrectIndex(null);
+      setError(null);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -192,12 +202,14 @@ export default function PlayerView() {
 
     const onLeaderboard = (payload: LeaderboardEvent) => {
       setLeaderboard(payload.leaderboard);
+      setError(null);
     };
 
     const onGameOver = () => {
       setStatus('finished');
       setQuestion(null);
       setTimeLeft(null);
+      setError(null);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -220,7 +232,7 @@ export default function PlayerView() {
         timerRef.current = null;
       }
     };
-  }, [joined, roomCodeInput, playerId]);
+  }, [joined, roomCodeInput, playerId, playerName]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();

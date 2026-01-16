@@ -42,7 +42,7 @@ export default function HostView() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const resultTimerRef = useRef<NodeJS.Timeout | null>(null);
   const resultTriggeredRef = useRef(false);
-  const rehydrateAttemptedRef = useRef(false);
+  const rehydrateAttemptedRef = useRef(0);
 
   const quizPayload = useMemo<QuizQuestion[]>(
     () => QUESTIONS.map((q) => ({ question: q.text, options: q.options, correctIndex: q.correctAnswerIndex })),
@@ -62,7 +62,7 @@ export default function HostView() {
     setShowingResult(false);
     setCorrectIndex(null);
     resultTriggeredRef.current = false;
-    rehydrateAttemptedRef.current = false;
+    rehydrateAttemptedRef.current = 0;
     if (resultTimerRef.current) {
       clearTimeout(resultTimerRef.current);
       resultTimerRef.current = null;
@@ -183,17 +183,16 @@ export default function HostView() {
           if (data.status) {
             setStatus(data.status);
           }
-        } else if (res.status === 404 && hostSecret && !rehydrateAttemptedRef.current) {
-          rehydrateAttemptedRef.current = true;
-          const rehydrated = await rehydrateRoom(roomCode, hostSecret);
-          if (!rehydrated) {
-            setError('Phòng đã mất. Vui lòng làm mới mã phòng.');
-            if (pollRef.current) {
-              clearInterval(pollRef.current);
-              pollRef.current = null;
+        } else if (res.status === 404 && hostSecret) {
+          const now = Date.now();
+          if (now - rehydrateAttemptedRef.current > 10000) {
+            rehydrateAttemptedRef.current = now;
+            const rehydrated = await rehydrateRoom(roomCode, hostSecret);
+            if (!rehydrated) {
+              setError('Đang khôi phục phòng... Nếu vẫn lỗi, hãy làm mới mã phòng.');
+            } else {
+              setError(null);
             }
-          } else {
-            setError(null);
           }
         }
       } catch (err) {
