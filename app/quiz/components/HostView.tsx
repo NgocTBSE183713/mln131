@@ -154,9 +154,8 @@ export default function HostView() {
                   return;
                 }
               }
-              setError('Phòng đã mất. Vui lòng bấm "Làm mới mã" để tạo phòng mới.');
-              setLoading(false);
-              return;
+              // Phòng cũ không tìm thấy, xóa localStorage và tạo phòng mới
+              localStorage.removeItem('quiz-host-room');
             }
           }
         }
@@ -164,7 +163,7 @@ export default function HostView() {
         console.warn('Restore room failed', err);
       }
 
-      // Nếu không có phòng đã lưu thì tạo phòng mới
+      // Nếu không có phòng đã lưu hoặc không khôi phục được thì tạo phòng mới
       createRoom();
     };
 
