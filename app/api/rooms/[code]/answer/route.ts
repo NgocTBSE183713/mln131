@@ -3,6 +3,16 @@ import { adminDb, adminInitError } from '@/lib/firebaseAdmin';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
+// Đảm bảo xử lý đáp án theo thứ tự cho từng phòng
+const answerLocks = new Map<string, Promise<any>>();
+
+function runExclusive<T>(code: string, fn: () => Promise<T>): Promise<T> {
+  const prev = answerLocks.get(code) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  answerLocks.set(code, next.catch(() => {}));
+  return next;
+}
+
 export async function POST(req: Request, ctx: ParamsPromise) {
   try {
     if (!adminDb) {

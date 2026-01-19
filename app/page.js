@@ -9,18 +9,18 @@ export default function Home() {
       <section className="bg-white/95 backdrop-blur-sm border-b border-[#E5E5E5]">
         <div className="max-w-[860px] mx-auto px-6 py-20 text-center">
           <h1 className="text-4xl font-bold text-[#1C1C1C] mb-6 leading-tight">
-            ĐƯỜNG LỐI CÁCH MẠNG 1930–1945
+            CHỦ NGHĨA XÃ HỘI KHOA HỌC
           </h1>
           <p className="text-lg text-[#585858] leading-relaxed mb-8 max-w-[680px] mx-auto">
-            Tìm hiểu đường lối cách mạng của Đảng Cộng sản Việt Nam trong giai đoạn lịch sử quan trọng, 
-            từ khi thành lập đến Cách mạng Tháng Tám thành công.
+            Nghiên cứu các quy luật khách quan của quá trình cách mạng, bản chất của nền dân chủ 
+            và thực tiễn thời kỳ quá độ lên chủ nghĩa xã hội tại Việt Nam.
           </p>
           <div className="flex gap-4 justify-center">
             <Link
               href="/noi-dung-chinh"
               className="px-6 py-3 bg-[#A61F2B] text-white rounded-lg hover:bg-[#8B1923] transition-colors duration-200"
             >
-              Khám phá nội dung chính
+              Khám phá lý luận chính trị
             </Link>
             <button
               onClick={() => document.querySelector('.fixed.bottom-6.right-6 button')?.click()}
@@ -35,7 +35,7 @@ export default function Home() {
       {/* Features Section */}
       <section className="max-w-[860px] mx-auto px-6 py-16">
         <h2 className="text-2xl font-bold text-[#FFFFFF] mb-8 text-center">
-          Nội dung website
+          Nội dung học tập
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
@@ -43,10 +43,10 @@ export default function Home() {
             className="bg-white border border-[#E5E5E5] rounded-lg p-6 hover:border-[#A61F2B] transition-colors duration-200 group"
           >
             <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2 group-hover:text-[#A61F2B]">
-              Nội dung chính
+              Lý luận cốt lõi
             </h3>
             <p className="text-[#585858] text-sm leading-relaxed">
-              4 chủ đề về đường lối cách mạng từ 1930–1945
+              4 chủ đề trọng tâm về CNXH khoa học và thực tiễn Việt Nam
             </p>
           </Link>
           
@@ -55,10 +55,10 @@ export default function Home() {
             className="bg-white border border-[#E5E5E5] rounded-lg p-6 hover:border-[#A61F2B] transition-colors duration-200 group"
           >
             <h3 className="text-lg font-semibold text-[#1C1C1C] mb-2 group-hover:text-[#A61F2B]">
-              Video Tổng Hợp Kiến Thức
+              Video Tổng Hợp
             </h3>
             <p className="text-[#585858] text-sm leading-relaxed">
-              Xem video tổng hợp kiến thức về các giai đoạn lịch sử
+              Xem video tổng hợp kiến thức về dân chủ và thời kỳ quá độ
             </p>
           </Link>
 
@@ -70,7 +70,7 @@ export default function Home() {
               Quiz real-time
             </h3>
             <p className="text-[#585858] text-sm leading-relaxed">
-              Tạo phòng, phát câu hỏi kiểu Kahoot; người chơi tham gia tại /quiz-join
+              Tạo phòng, phát câu hỏi trắc nghiệm lý luận; tham gia tại /quiz-join
             </p>
           </Link>
         </div>
@@ -85,19 +85,19 @@ export default function Home() {
           <ul className="space-y-4 text-[#1C1C1C] leading-relaxed">
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>
-              <span>Truy cập trang <strong>Nội dung chính</strong> và tìm hiểu về 4 chủ đề lịch sử</span>
+              <span>Truy cập <strong>Nội dung chính</strong> để nghiên cứu sâu về sứ mệnh lịch sử của giai cấp công nhân</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>
-              <span>Sử dụng Trợ lý AI ở góc phải màn hình để hỏi lại phần chưa rõ hoặc cần giải thích thêm</span>
+              <span>Sử dụng Trợ lý AI chuyên sâu để giải thích các khái niệm như "Bỏ qua chế độ TBCN"</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>
-              <span>Truy cập trang <strong>Video Tổng Hợp Kiến Thức</strong> để xem video tổng hợp kiến thức về các giai đoạn lịch sử</span>
+              <span>Truy cập <strong>Video Tổng Hợp</strong> để nắm bắt trực quan các hình thái dân chủ trong lịch sử</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-[#A61F2B] font-bold flex-shrink-0">•</span>
-              <span>Ghi chú những điểm quan trọng về chủ trương, phương pháp và ý nghĩa của từng giai đoạn</span>
+              <span>Hệ thống hóa các luận điểm về bản chất chính trị, kinh tế, văn hóa của nền dân chủ XHCN</span>
             </li>
           </ul>
         </div>
@@ -105,4 +105,3 @@ export default function Home() {
     </div>
   );
 }
-

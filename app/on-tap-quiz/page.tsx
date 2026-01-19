@@ -6,7 +6,7 @@ export default function OnTapQuiz() {
       <div className="max-w-[1200px] mx-auto px-6 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl py-8">
         <PageHeader
           title="Video Tổng Hợp Kiến Thức"
-          description="Video tổng hợp kiến thức về đường lối cách mạng 1930–1945"
+          description="Video tổng hợp kiến thức về Hành trình dân chủ xã hội chủ nghĩa và Thời kỳ quá độ lên Chủ nghĩa xã hội tại Việt Nam."
         />
 
         <div className="bg-white border border-[#E5E5E5] rounded-lg p-8">
