@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { pusherClient } from '@/lib/pusherClient';
+import { clientDb } from '@/lib/firebaseClient';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { QUESTIONS } from '../lib/questionBank';
 import type { QuizQuestion } from '@/lib/quizTypes';
 
@@ -42,11 +43,36 @@ export default function HostView() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const resultTimerRef = useRef<NodeJS.Timeout | null>(null);
   const resultTriggeredRef = useRef(false);
+  const rehydrateAttemptedRef = useRef(0);
+  const lastQuestionIndexRef = useRef<number>(-1);
 
   const quizPayload = useMemo<QuizQuestion[]>(
     () => QUESTIONS.map((q) => ({ question: q.text, options: q.options, correctIndex: q.correctAnswerIndex })),
     []
   );
+
+  const readJsonSafe = useCallback(async (res: Response) => {
+    const text = await res.text();
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return { __raw: text } as any;
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { __raw: text } as any;
+    }
+  }, []);
+
+  const getErrorMessage = useCallback((data: any, fallback: string) => {
+    if (typeof data?.error === 'string' && data.error.trim()) return data.error;
+    if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+    if (typeof data?.__raw === 'string' && data.__raw.trim()) {
+      const snippet = data.__raw.replace(/<[^>]*>/g, '').trim();
+      return snippet ? snippet.slice(0, 200) : fallback;
+    }
+    return fallback;
+  }, []);
 
   const createRoom = useCallback(async () => {
     setError(null);
@@ -61,6 +87,7 @@ export default function HostView() {
     setShowingResult(false);
     setCorrectIndex(null);
     resultTriggeredRef.current = false;
+    rehydrateAttemptedRef.current = 0;
     if (resultTimerRef.current) {
       clearTimeout(resultTimerRef.current);
       resultTimerRef.current = null;
@@ -79,8 +106,8 @@ export default function HostView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quiz: quizPayload }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Không tạo được phòng');
+      const data = await readJsonSafe(res);
+      if (!res.ok) throw new Error(getErrorMessage(data, 'Không tạo được phòng'));
       setRoomCode(data.roomCode);
       setHostSecret(data.hostSecret);
       localStorage.setItem('quiz-host-room', JSON.stringify({ roomCode: data.roomCode, hostSecret: data.hostSecret }));
@@ -89,7 +116,42 @@ export default function HostView() {
       setError(err?.message || 'Không tạo được phòng');
       setLoading(false);
     }
-  }, [quizPayload]);
+  }, [quizPayload, readJsonSafe, getErrorMessage]);
+
+  const rehydrateRoom = useCallback(
+    async (code: string, secret: string) => {
+      try {
+        const res = await fetch('/api/rooms/rehydrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomCode: code, hostSecret: secret }),
+        });
+        if (!res.ok) return false;
+        localStorage.setItem('quiz-host-room', JSON.stringify({ roomCode: code, hostSecret: secret }));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    []
+  );
+
+  const fetchRoomState = useCallback(async (code: string) => {
+    const res = await fetch(`/api/rooms/${code}/state`);
+    const data = await readJsonSafe(res);
+    if (res.ok) {
+      setStatus(data.status ?? 'lobby');
+      setPlayerCount(data.playerCount ?? 0);
+      setPlayers(Array.isArray(data.players) ? data.players : []);
+      if (Array.isArray(data.leaderboard)) {
+        setLeaderboard(data.leaderboard);
+      }
+      if (typeof data.answeredCount === 'number') {
+        setAnsweredCount(data.answeredCount);
+      }
+    }
+    return { ok: res.ok, status: res.status };
+  }, [readJsonSafe]);
 
   useEffect(() => {
     const restoreRoom = async () => {
@@ -98,16 +160,27 @@ export default function HostView() {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed?.roomCode && parsed?.hostSecret) {
-            const res = await fetch(`/api/rooms/${parsed.roomCode}/state`);
-            const data = await res.json();
-            if (res.ok) {
+            const state = await fetchRoomState(parsed.roomCode);
+            if (state.ok) {
               setRoomCode(parsed.roomCode);
               setHostSecret(parsed.hostSecret);
-              setStatus(data.status ?? 'lobby');
-              setPlayerCount(data.playerCount ?? 0);
-              setPlayers(Array.isArray(data.players) ? data.players : []);
               setLoading(false);
               return;
+            }
+            if (state.status === 404) {
+              const rehydrated = await rehydrateRoom(parsed.roomCode, parsed.hostSecret);
+              if (rehydrated) {
+                setRoomCode(parsed.roomCode);
+                setHostSecret(parsed.hostSecret);
+                setError(null);
+                const refreshed = await fetchRoomState(parsed.roomCode);
+                if (refreshed.ok) {
+                  setLoading(false);
+                  return;
+                }
+              }
+              // Phòng cũ không tìm thấy, xóa localStorage và tạo phòng mới
+              localStorage.removeItem('quiz-host-room');
             }
           }
         }
@@ -115,111 +188,85 @@ export default function HostView() {
         console.warn('Restore room failed', err);
       }
 
-      // Nếu không khôi phục được thì tạo phòng mới
+      // Nếu không có phòng đã lưu hoặc không khôi phục được thì tạo phòng mới
       createRoom();
     };
 
     restoreRoom();
-  }, [createRoom]);
+  }, [createRoom, fetchRoomState, rehydrateRoom]);
 
   useEffect(() => {
-    if (!roomCode || !pusherClient) return;
+    if (!roomCode) return;
 
-    const channel = (pusherClient as any).subscribe(`presence-${roomCode}`, {
-      auth: {
-        params: { user_id: `host-${roomCode}`, user_name: 'Host' },
-      },
-    });
-
-    // Fallback polling để vẫn thấy người chơi và số trả lời nếu Pusher gặp sự cố
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/rooms/${roomCode}/state`);
-        const data = await res.json();
-        if (res.ok) {
-          setPlayerCount(data.playerCount ?? 0);
-          setPlayers(Array.isArray(data.players) ? data.players : []);
-          // Cập nhật số trả lời và bảng điểm từ polling
-          if (typeof data.answeredCount === 'number') {
-            setAnsweredCount(data.answeredCount);
-          }
-          if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
-            setLeaderboard(data.leaderboard);
-          }
-          // Cập nhật status
-          if (data.status) {
-            setStatus(data.status);
-          }
-        }
-      } catch (err) {
-        console.warn('Poll room state failed', err);
-      }
-    };
-    poll();
-    pollRef.current = setInterval(poll, 1500);
-
-    const onPlayerJoined = (payload: { playerId: string; playerName: string; playerCount: number }) => {
-      setPlayerCount(payload.playerCount);
-      setPlayers((prev) => (prev.includes(payload.playerName) ? prev : [...prev, payload.playerName]));
-    };
-
-    const onQuestion = (payload: QuestionEvent) => {
-      setStatus('in-progress');
-      setQuestion(payload.question);
-      setAnsweredCount(0);
-      setShowingResult(false);
-      setCorrectIndex(null);
-      resultTriggeredRef.current = false;
-      if (resultTimerRef.current) {
-        clearTimeout(resultTimerRef.current);
-        resultTimerRef.current = null;
-      }
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      if (payload.question.deadline && payload.question.durationMs) {
-        const tick = () => {
-          const msLeft = Math.max(0, payload.question.deadline! - Date.now());
-          setTimeLeft(Math.ceil(msLeft / 1000));
-        };
-        tick();
-        timerRef.current = setInterval(tick, 500);
+    const roomRef = doc(clientDb, 'rooms', roomCode);
+    const unsubscribe = onSnapshot(roomRef, (snap) => {
+      if (!snap.exists()) {
+        setError('Phòng đã mất. Vui lòng bấm "Làm mới mã" để tạo phòng mới.');
         return;
       }
-      setTimeLeft(null);
-    };
 
-    const onLeaderboard = (payload: LeaderboardEvent) => {
-      setLeaderboard(payload.leaderboard);
-      setAnsweredCount(payload.answeredCount);
-      setPlayerCount(payload.playerCount);
-    };
+      const room = snap.data() as any;
+      setStatus(room.status ?? 'lobby');
+      const playersMap = room.players || {};
+      setPlayerCount(Object.keys(playersMap).length);
+      setPlayers(Object.values(playersMap).map((p: any) => p.name));
+      setLeaderboard(
+        Object.entries(room.leaderboard || {})
+          .map(([id, entry]: any) => ({ id, ...entry }))
+          .sort((a: any, b: any) => b.score - a.score || (a.lastAnswerAt || 0) - (b.lastAnswerAt || 0))
+      );
+      setAnsweredCount(Array.isArray(room.answeredThisRound) ? room.answeredThisRound.length : 0);
 
-    const onGameOver = (payload: { leaderboard: LeaderboardEvent['leaderboard'] }) => {
-      setStatus('finished');
-      setQuestion(null);
-      setLeaderboard(payload.leaderboard);
-      setTimeLeft(null);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (room.status === 'finished') {
+        setQuestion(null);
+        setTimeLeft(null);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        return;
       }
-    };
 
-    channel.bind('player-joined', onPlayerJoined);
-    channel.bind('question', onQuestion as any);
-    channel.bind('leaderboard', onLeaderboard as any);
-    channel.bind('game-over', onGameOver as any);
+      if (room.status === 'in-progress' && room.currentQuestionIndex >= 0 && room.currentQuestionIndex < room.quiz.length) {
+        const q = room.quiz[room.currentQuestionIndex];
+        if (room.currentQuestionIndex !== lastQuestionIndexRef.current) {
+          lastQuestionIndexRef.current = room.currentQuestionIndex;
+          setQuestion({
+            index: room.currentQuestionIndex,
+            total: room.quiz.length,
+            prompt: q.question,
+            options: q.options,
+            deadline: room.questionDeadline ?? undefined,
+            durationMs: room.questionDurationMs ?? undefined,
+          });
+          setShowingResult(false);
+          setCorrectIndex(null);
+          resultTriggeredRef.current = false;
+          if (resultTimerRef.current) {
+            clearTimeout(resultTimerRef.current);
+            resultTimerRef.current = null;
+          }
+        }
+
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        if (room.questionDeadline && room.questionDurationMs) {
+          const tick = () => {
+            const msLeft = Math.max(0, room.questionDeadline - Date.now());
+            setTimeLeft(Math.ceil(msLeft / 1000));
+          };
+          tick();
+          timerRef.current = setInterval(tick, 500);
+        } else {
+          setTimeLeft(null);
+        }
+      }
+    });
 
     return () => {
-      channel.unbind('player-joined', onPlayerJoined);
-      channel.unbind('question', onQuestion as any);
-      channel.unbind('leaderboard', onLeaderboard as any);
-      channel.unbind('game-over', onGameOver as any);
-      if (pusherClient) {
-        pusherClient.unsubscribe(`presence-${roomCode}`);
-      }
+      unsubscribe();
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -236,14 +283,37 @@ export default function HostView() {
     setError(null);
     setShowingResult(false);
     setCorrectIndex(null);
-    const res = await fetch(`/api/rooms/${roomCode}/next-question`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostSecret, code: roomCode }),
-    });
-    const data = await res.json();
+    const sendRequest = async () => {
+      try {
+        const response = await fetch(`/api/rooms/${roomCode}/next-question`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hostSecret, code: roomCode }),
+        });
+        const payload = await readJsonSafe(response);
+        return { response, payload };
+      } catch (err: any) {
+        return { response: null, payload: { error: err?.message || 'Network error' } } as any;
+      }
+    };
+
+    let { response: res, payload: data } = await sendRequest();
+
+    if (!res) {
+      setError(getErrorMessage(data, 'Không gửi được câu hỏi (mạng)'));
+      return;
+    }
+    if (!res.ok && res.status === 404) {
+      const rehydrated = await rehydrateRoom(roomCode, hostSecret);
+      if (rehydrated) {
+        const retry = await sendRequest();
+        res = retry.response;
+        data = retry.payload;
+      }
+    }
+
     if (!res.ok) {
-      setError(data?.error || 'Không gửi được câu hỏi');
+      setError(getErrorMessage(data, 'Không gửi được câu hỏi'));
       return;
     }
 
@@ -310,12 +380,24 @@ export default function HostView() {
   const endQuestionEarly = async () => {
     if (!roomCode || !hostSecret) return;
     setError(null);
-    const res = await fetch(`/api/rooms/${roomCode}/end-question`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostSecret, code: roomCode }),
-    });
-    if (res.ok) {
+    let success = false;
+    try {
+      const res = await fetch(`/api/rooms/${roomCode}/end-question`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostSecret, code: roomCode }),
+      });
+      const data = await readJsonSafe(res);
+      if (!res.ok) {
+        setError(getErrorMessage(data, 'Không kết thúc được câu hỏi'));
+        return;
+      }
+      success = true;
+    } catch (err: any) {
+      setError(err?.message || 'Không kết thúc được câu hỏi (mạng)');
+      return;
+    }
+    if (success) {
       // Đưa đồng hồ về 0 để kích hoạt hiển thị kết quả 3 giây, sau đó useEffect sẽ tự gọi câu tiếp
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -337,9 +419,18 @@ export default function HostView() {
     }
   };
 
-  if (!pusherClient) return <div className="flex items-center justify-center min-h-screen text-center text-red-600">Thiếu cấu hình Pusher (NEXT_PUBLIC_PUSHER_KEY / NEXT_PUBLIC_PUSHER_CLUSTER).</div>;
   if (loading) return <div className="flex items-center justify-center min-h-screen text-xl">Đang tạo phòng...</div>;
-  if (error) return <div className="flex items-center justify-center min-h-screen text-red-600">{error}</div>;
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-6 p-8 bg-gray-100">
+      <div className="text-xl font-bold text-red-600">{error}</div>
+      <button
+        onClick={createRoom}
+        className="px-8 py-4 text-lg font-black text-white transition-all shadow-lg rounded-xl bg-brand-purple hover:scale-105"
+      >
+        🔄 Làm mới mã phòng
+      </button>
+    </div>
+  );
   if (!roomCode) return <div className="flex items-center justify-center min-h-screen text-xl">Không có phòng</div>;
 
   // Màn hình tuyên dương khi kết thúc
@@ -353,10 +444,10 @@ export default function HostView() {
           {/* Hạng 2 */}
           {top3[1] && (
             <div className="flex flex-col items-center">
-              <div className="w-20 h-20 mb-2 text-3xl font-black text-white rounded-full shadow-lg bg-gray-400/80 flex items-center justify-center">
+              <div className="flex items-center justify-center w-20 h-20 mb-2 text-3xl font-black text-white rounded-full shadow-lg bg-gray-400/80">
                 {top3[1].name.slice(0, 2).toUpperCase()}
               </div>
-              <div className="w-24 h-32 bg-gray-300 rounded-t-xl flex flex-col items-center justify-center shadow-lg">
+              <div className="flex flex-col items-center justify-center w-24 h-32 bg-gray-300 shadow-lg rounded-t-xl">
                 <span className="text-4xl">🥈</span>
                 <span className="font-bold text-gray-700">{top3[1].name}</span>
                 <span className="text-lg font-black text-gray-600">{top3[1].score}</span>
@@ -367,10 +458,10 @@ export default function HostView() {
           {/* Hạng 1 */}
           {top3[0] && (
             <div className="flex flex-col items-center -mt-8">
-              <div className="w-24 h-24 mb-2 text-4xl font-black text-white rounded-full shadow-lg bg-yellow-500 flex items-center justify-center animate-bounce">
+              <div className="flex items-center justify-center w-24 h-24 mb-2 text-4xl font-black text-white bg-yellow-500 rounded-full shadow-lg animate-bounce">
                 {top3[0].name.slice(0, 2).toUpperCase()}
               </div>
-              <div className="w-28 h-44 bg-yellow-400 rounded-t-xl flex flex-col items-center justify-center shadow-lg">
+              <div className="flex flex-col items-center justify-center bg-yellow-400 shadow-lg w-28 h-44 rounded-t-xl">
                 <span className="text-5xl">🥇</span>
                 <span className="text-lg font-bold text-yellow-900">{top3[0].name}</span>
                 <span className="text-2xl font-black text-yellow-800">{top3[0].score}</span>
@@ -381,10 +472,10 @@ export default function HostView() {
           {/* Hạng 3 */}
           {top3[2] && (
             <div className="flex flex-col items-center">
-              <div className="w-16 h-16 mb-2 text-2xl font-black text-white rounded-full shadow-lg bg-orange-400/80 flex items-center justify-center">
+              <div className="flex items-center justify-center w-16 h-16 mb-2 text-2xl font-black text-white rounded-full shadow-lg bg-orange-400/80">
                 {top3[2].name.slice(0, 2).toUpperCase()}
               </div>
-              <div className="w-20 h-24 bg-orange-300 rounded-t-xl flex flex-col items-center justify-center shadow-lg">
+              <div className="flex flex-col items-center justify-center w-20 h-24 bg-orange-300 shadow-lg rounded-t-xl">
                 <span className="text-3xl">🥉</span>
                 <span className="text-sm font-bold text-orange-700">{top3[2].name}</span>
                 <span className="font-black text-orange-600">{top3[2].score}</span>
@@ -393,9 +484,9 @@ export default function HostView() {
           )}
         </div>
 
-        <div className="w-full max-w-md p-4 bg-white/90 rounded-xl shadow-lg">
+        <div className="w-full max-w-md p-4 shadow-lg bg-white/90 rounded-xl">
           <div className="mb-2 text-lg font-bold text-gray-800">Bảng xếp hạng đầy đủ</div>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 overflow-y-auto max-h-48">
             {leaderboard.map((entry, idx) => (
               <div key={entry.id} className="flex items-center justify-between p-2 bg-gray-100 rounded-lg">
                 <div className="flex items-center gap-2">
@@ -410,7 +501,7 @@ export default function HostView() {
 
         <button
           onClick={createRoom}
-          className="px-8 py-4 mt-8 text-xl font-black text-white transition-all rounded-xl shadow-lg bg-brand-purple hover:scale-105"
+          className="px-8 py-4 mt-8 text-xl font-black text-white transition-all shadow-lg rounded-xl bg-brand-purple hover:scale-105"
         >
           Chơi lại
         </button>
@@ -488,8 +579,8 @@ export default function HostView() {
           <div className="flex items-center justify-between p-4 bg-white shadow rounded-xl">
             <div className="text-lg font-bold text-gray-600">Đã trả lời: {answeredCount}/{playerCount}</div>
             <div className="flex -space-x-2">
-              {players.slice(0, 6).map((name) => (
-                <div key={name} className="flex items-center justify-center w-10 h-10 text-sm font-bold text-white rounded-full shadow bg-brand-purple">{name.slice(0,2).toUpperCase()}</div>
+              {players.slice(0, 6).map((name, idx) => (
+                <div key={`${name}-${idx}`} className="flex items-center justify-center w-10 h-10 text-sm font-bold text-white rounded-full shadow bg-brand-purple">{name.slice(0,2).toUpperCase()}</div>
               ))}
             </div>
           </div>
@@ -499,8 +590,8 @@ export default function HostView() {
           <div className="text-4xl font-black text-brand-purple">Đang chờ người chơi</div>
           <div className="text-gray-500">Khi đủ người, bấm "Bắt đầu" để gửi câu hỏi.</div>
           <div className="flex flex-wrap justify-center max-w-xl gap-3 mt-4">
-            {players.map((name) => (
-              <div key={name} className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-full shadow">{name}</div>
+            {players.map((name, idx) => (
+              <div key={`${name}-${idx}`} className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-full shadow">{name}</div>
             ))}
           </div>
         </main>
@@ -515,7 +606,7 @@ export default function HostView() {
             {leaderboard.map((entry, idx) => (
               <div key={entry.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 font-bold text-center text-white rounded-full bg-brand-purple">{idx + 1}</span>
+                  <span className="flex items-center justify-center w-8 h-8 font-bold text-center bg-white border-2 rounded-full text-brand-purple border-brand-purple">{idx + 1}</span>
                   <span className="font-bold text-gray-800">{entry.name}</span>
                 </div>
                 <span className="text-xl font-black text-brand-purple">{entry.score}</span>

@@ -1,32 +1,28 @@
 import { NextResponse } from 'next/server';
-import { advanceQuestion } from '@/lib/gameStore';
-import { pusherServer, pusherConfigured } from '@/lib/pusher';
-import { getRoom } from '@/lib/gameStore';
+import { adminDb, adminInitError } from '@/lib/firebaseAdmin';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
 export async function POST(req: Request, ctx: ParamsPromise) {
   try {
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: adminInitError ? `Firebase admin init failed: ${adminInitError}` : 'Firebase admin not configured' },
+        { status: 500 }
+      );
+    }
     const { hostSecret, code: codeInBody } = await req.json();
     if (!hostSecret) return NextResponse.json({ error: 'hostSecret required' }, { status: 400 });
 
     const resolved = 'params' in ctx ? (typeof (ctx as any).params?.then === 'function' ? await (ctx as any).params : (ctx as any).params) : undefined;
     const code = (codeInBody || resolved?.code)?.toUpperCase();
     if (!code) return NextResponse.json({ error: 'Room code missing' }, { status: 400 });
-    if (!pusherConfigured) {
-      return NextResponse.json({ error: 'Pusher env missing (PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER, NEXT_PUBLIC_PUSHER_KEY, NEXT_PUBLIC_PUSHER_CLUSTER)' }, { status: 500 });
+    const { room, question, error, status } = await advanceQuestionWithAuth(code, hostSecret);
+    if (error) {
+      return NextResponse.json({ error }, { status });
     }
-
-    const precheck = advanceQuestionWithAuth(code, hostSecret);
-    if ('error' in precheck) {
-      return NextResponse.json({ error: precheck.error }, { status: precheck.status });
-    }
-    const { room, question } = precheck;
 
     if (!question) {
-      await pusherServer.trigger(`presence-${code}`, 'game-over', {
-        leaderboard: leaderboardList(room.leaderboard),
-      });
       return NextResponse.json({ status: room.status, done: true, leaderboard: leaderboardList(room.leaderboard) });
     }
 
@@ -38,8 +34,6 @@ export async function POST(req: Request, ctx: ParamsPromise) {
       deadline: room.questionDeadline,
       durationMs: room.questionDurationMs,
     };
-
-    await pusherServer.trigger(`presence-${code}`, 'question', { question: payload });
 
     // Trả về payload để host có thể fallback hiển thị ngay cả khi realtime gặp lỗi
     return NextResponse.json({ ok: true, status: room.status, question: payload, deadline: room.questionDeadline, durationMs: room.questionDurationMs });
@@ -55,9 +49,51 @@ function leaderboardList(board: Record<string, { name: string; score: number; la
     .sort((a, b) => b.score - a.score || (a.lastAnswerAt || 0) - (b.lastAnswerAt || 0));
 }
 
-function advanceQuestionWithAuth(code: string, hostSecret: string) {
-  const room = getRoom(code.toUpperCase());
-  if (!room) return { error: 'Room not found', status: 404 } as const;
-  if (room.hostSecret !== hostSecret) return { error: 'Unauthorized host', status: 403 } as const;
-  return advanceQuestion(code.toUpperCase());
+async function advanceQuestionWithAuth(code: string, hostSecret: string) {
+  const roomRef = adminDb!.collection('rooms').doc(code.toUpperCase());
+  return adminDb!.runTransaction(async (tx) => {
+    const snap = await tx.get(roomRef);
+    if (!snap.exists) return { error: 'Room not found', status: 404 } as const;
+    const room = snap.data() as any;
+    if (room.hostSecret !== hostSecret) return { error: 'Unauthorized host', status: 403 } as const;
+
+    if (room.status === 'finished') {
+      return { room } as const;
+    }
+
+    const nextIndex = (room.currentQuestionIndex ?? -1) + 1;
+    if (nextIndex >= room.quiz.length) {
+      const updated = {
+        ...room,
+        currentQuestionIndex: nextIndex,
+        status: 'finished',
+        answeredThisRound: [],
+        questionDeadline: null,
+        questionDurationMs: null,
+      };
+      tx.update(roomRef, updated);
+      return { room: updated } as const;
+    }
+
+    const QUESTION_DURATION_MS = 15000;
+    const deadline = Date.now() + QUESTION_DURATION_MS;
+    const updated = {
+      ...room,
+      currentQuestionIndex: nextIndex,
+      status: 'in-progress',
+      answeredThisRound: [],
+      questionDeadline: deadline,
+      questionDurationMs: QUESTION_DURATION_MS,
+    };
+    tx.update(roomRef, {
+      currentQuestionIndex: updated.currentQuestionIndex,
+      status: updated.status,
+      answeredThisRound: updated.answeredThisRound,
+      questionDeadline: updated.questionDeadline,
+      questionDurationMs: updated.questionDurationMs,
+    });
+
+    const question = room.quiz[nextIndex];
+    return { room: updated, question } as const;
+  });
 }

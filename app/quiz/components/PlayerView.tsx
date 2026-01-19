@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { pusherClient } from '@/lib/pusherClient';
+import { clientDb } from '@/lib/firebaseClient';
+import { doc, onSnapshot } from 'firebase/firestore';
 // Dùng màu tailwind mặc định để tránh purge/safelist bị mất màu
 const PLAYER_COLORS = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
 
@@ -41,6 +42,8 @@ export default function PlayerView() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const lastQuestionIndexRef = useRef<number>(-1);
   const showResultTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rejoinAttemptedRef = useRef(false);
+  const missingRoomSinceRef = useRef<number | null>(null);
 
   // Khi hết giờ hoặc host kết thúc, hiển thị kết quả (tô xanh đáp án đúng, đỏ đáp án sai) trong 3s
   useEffect(() => {
@@ -70,7 +73,7 @@ export default function PlayerView() {
     };
   }, [question, timeLeft, showingResult]);
 
-  // Polling fallback để lấy câu hỏi nếu Pusher không hoạt động
+  // Polling fallback nếu realtime bị gián đoạn
   useEffect(() => {
     if (!joined || !roomCodeInput) return;
 
@@ -125,6 +128,27 @@ export default function PlayerView() {
               timerRef.current = null;
             }
           }
+        } else if (res.status === 404) {
+          if (!rejoinAttemptedRef.current && playerId && playerName) {
+            rejoinAttemptedRef.current = true;
+            const joinRes = await fetch(`/api/rooms/${code}/join`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ playerId, playerName, code }),
+            });
+            if (joinRes.ok) {
+              setError(null);
+              missingRoomSinceRef.current = null;
+              return;
+            }
+          }
+          if (!missingRoomSinceRef.current) {
+            missingRoomSinceRef.current = Date.now();
+          }
+          const elapsed = Date.now() - (missingRoomSinceRef.current || Date.now());
+          if (elapsed > 5000) {
+            setError('Đang chờ host khôi phục phòng... Nếu quá lâu, hãy kiểm tra mã phòng.');
+          }
         }
       } catch (err) {
         console.warn('Poll room state failed', err);
@@ -143,69 +167,90 @@ export default function PlayerView() {
   }, [joined, roomCodeInput]);
 
   useEffect(() => {
-    if (!joined || !roomCodeInput || !playerId || !pusherClient) return;
+    if (!joined || !roomCodeInput) return;
 
     const code = roomCodeInput.toUpperCase();
-    const channel = pusherClient.subscribe(`presence-${code}`);
-
-    const onQuestion = (payload: QuestionEvent) => {
-      setStatus('in-progress');
-      setQuestion(payload.question);
-      setHasAnswered(false);
-      setSelectedAnswer(null);
-      setShowingResult(false);
-      setCorrectIndex(null);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      if (payload.question.deadline && payload.question.durationMs) {
-        const tick = () => {
-          const msLeft = Math.max(0, payload.question.deadline! - Date.now());
-          setTimeLeft(Math.ceil(msLeft / 1000));
-        };
-        tick();
-        timerRef.current = setInterval(tick, 500);
+    const roomRef = doc(clientDb, 'rooms', code);
+    const unsubscribe = onSnapshot(roomRef, (snap) => {
+      if (!snap.exists()) {
+        setError('Phòng không tồn tại hoặc đã hết hạn. Vui lòng kiểm tra mã phòng.');
         return;
       }
-      setTimeLeft(null);
-    };
 
-    const onLeaderboard = (payload: LeaderboardEvent) => {
-      setLeaderboard(payload.leaderboard);
-    };
+      const room = snap.data() as any;
+      setStatus(room.status ?? 'lobby');
+      setLeaderboard(
+        Object.entries(room.leaderboard || {})
+          .map(([id, entry]: any) => ({ id, ...entry }))
+          .sort((a: any, b: any) => b.score - a.score || (a.lastAnswerAt || 0) - (b.lastAnswerAt || 0))
+      );
+      setShowingResult(false);
+      setError(null);
 
-    const onGameOver = () => {
-      setStatus('finished');
-      setQuestion(null);
-      setTimeLeft(null);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (room.status === 'finished') {
+        setQuestion(null);
+        setTimeLeft(null);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        return;
       }
-    };
 
-    channel.bind('question', onQuestion as any);
-    channel.bind('leaderboard', onLeaderboard as any);
-    channel.bind('game-over', onGameOver as any);
+      if (room.status === 'in-progress' && room.currentQuestionIndex >= 0 && room.currentQuestionIndex < room.quiz.length) {
+        const q = room.quiz[room.currentQuestionIndex];
+        if (room.currentQuestionIndex !== lastQuestionIndexRef.current) {
+          lastQuestionIndexRef.current = room.currentQuestionIndex;
+          setQuestion({
+            index: room.currentQuestionIndex,
+            total: room.quiz.length,
+            prompt: q.question,
+            options: q.options,
+            deadline: room.questionDeadline ?? undefined,
+            durationMs: room.questionDurationMs ?? undefined,
+            correctIndex: undefined,
+          });
+          setHasAnswered(false);
+          setSelectedAnswer(null);
+          setCorrectIndex(null);
+          setShowingResult(false);
+        }
+
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        if (room.questionDeadline && room.questionDurationMs) {
+          const tick = () => {
+            const msLeft = Math.max(0, room.questionDeadline - Date.now());
+            setTimeLeft(Math.ceil(msLeft / 1000));
+          };
+          tick();
+          timerRef.current = setInterval(tick, 500);
+        } else {
+          setTimeLeft(null);
+        }
+
+        if (room.questionDeadline && Date.now() > room.questionDeadline) {
+          setCorrectIndex(q.correctIndex);
+          setShowingResult(true);
+        }
+      }
+    });
 
     return () => {
-      channel.unbind('question', onQuestion as any);
-      channel.unbind('leaderboard', onLeaderboard as any);
-      channel.unbind('game-over', onGameOver as any);
-      if (pusherClient) {
-        pusherClient.unsubscribe(`presence-${code}`);
-      }
+      unsubscribe();
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [joined, roomCodeInput, playerId]);
+  }, [joined, roomCodeInput]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    rejoinAttemptedRef.current = false;
     if (!roomCodeInput.trim() || !playerName.trim()) {
       setError('Nhập mã phòng và tên');
       return;
@@ -245,14 +290,6 @@ export default function PlayerView() {
       setError(data?.error || 'Không gửi được đáp án');
     }
   };
-
-  if (!pusherClient) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-center text-red-100 bg-brand-purple">
-        Thiếu cấu hình Pusher (NEXT_PUBLIC_PUSHER_KEY / NEXT_PUBLIC_PUSHER_CLUSTER).
-      </div>
-    );
-  }
 
   if (!joined) {
     return (
@@ -335,9 +372,7 @@ export default function PlayerView() {
                   ? isCorrectOpt
                     ? 'bg-green-500'
                     : 'bg-red-500'
-                  : isSelected
-                    ? 'bg-red-500'
-                    : PLAYER_COLORS[idx % PLAYER_COLORS.length]
+                  : PLAYER_COLORS[idx % PLAYER_COLORS.length]
               } ${disabled ? 'opacity-90 cursor-default' : ''}`}
             >
               <div className="flex flex-col items-center justify-center text-white">
