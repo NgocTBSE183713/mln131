@@ -25,6 +25,10 @@ export async function POST(req: Request, ctx: ParamsPromise) {
     if (!snap.exists) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
+    const roomData = snap.data() as any;
+    if (roomData.status && roomData.status !== 'lobby') {
+      return NextResponse.json({ error: 'Phòng đã bắt đầu, không thể tham gia thêm.' }, { status: 403 });
+    }
 
     await roomRef.update({
       [`players.${playerId}`]: { name: playerName, joinedAt: Date.now() },
