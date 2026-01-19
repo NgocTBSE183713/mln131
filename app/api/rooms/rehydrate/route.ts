@@ -1,34 +1,32 @@
 import { NextResponse } from 'next/server';
-import { ensureRoom } from '@/lib/gameStore';
-import { QuizQuestion } from '@/lib/quizTypes';
+import { adminDb, adminInitError } from '@/lib/firebaseAdmin';
 
 export async function POST(req: Request) {
   try {
-    const { roomCode, hostSecret, quiz } = await req.json();
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: adminInitError ? `Firebase admin init failed: ${adminInitError}` : 'Firebase admin not configured' },
+        { status: 500 }
+      );
+    }
+    const { roomCode, hostSecret } = await req.json();
     if (!roomCode || !hostSecret) {
       return NextResponse.json({ error: 'roomCode and hostSecret are required' }, { status: 400 });
     }
-    if (!Array.isArray(quiz) || quiz.length === 0) {
-      return NextResponse.json({ error: 'quiz is required' }, { status: 400 });
+    const code = String(roomCode).toUpperCase();
+    const snap = await adminDb.collection('rooms').doc(code).get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
-
-    const normalized: QuizQuestion[] = quiz.map((q: any) => ({
-      question: q.question,
-      options: q.options,
-      correctIndex: q.correctIndex,
-      explanation: q.explanation,
-    }));
-
-    const room = await ensureRoom({ roomCode, hostSecret, quiz: normalized });
-
-    return NextResponse.json({
-      roomCode: room.roomCode,
-      hostSecret: room.hostSecret,
-      quizLength: room.quiz.length,
-      rehydrated: true,
-    });
+    const room = snap.data() as any;
+    if (room.hostSecret !== hostSecret) {
+      return NextResponse.json({ error: 'Unauthorized host' }, { status: 403 });
+    }
+    return NextResponse.json({ roomCode: room.roomCode, hostSecret: room.hostSecret, quizLength: room.quiz?.length || 0, rehydrated: true });
   } catch (error: any) {
     console.error('Rehydrate room error', error);
-    return NextResponse.json({ error: error?.message || 'Internal error' }, { status: 500 });
+    const message = error?.message || 'Internal error';
+    const status = message === 'Room not found' ? 404 : message === 'Unauthorized host' ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

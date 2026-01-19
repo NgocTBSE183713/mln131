@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getRoomAsync, persistRoom } from '@/lib/gameStore';
+import { adminDb, adminInitError } from '@/lib/firebaseAdmin';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
 export async function POST(req: Request, ctx: ParamsPromise) {
   try {
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: adminInitError ? `Firebase admin init failed: ${adminInitError}` : 'Firebase admin not configured' },
+        { status: 500 }
+      );
+    }
     const { hostSecret, code: codeInBody } = await req.json();
     if (!hostSecret) return NextResponse.json({ error: 'hostSecret required' }, { status: 400 });
 
@@ -12,13 +18,16 @@ export async function POST(req: Request, ctx: ParamsPromise) {
     const code = (codeInBody || resolved?.code)?.toUpperCase();
     if (!code) return NextResponse.json({ error: 'Room code missing' }, { status: 400 });
 
-    const room = await getRoomAsync(code);
-    if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    const roomRef = adminDb.collection('rooms').doc(code);
+    const snap = await roomRef.get();
+    if (!snap.exists) return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    const room = snap.data() as any;
     if (room.hostSecret !== hostSecret) return NextResponse.json({ error: 'Unauthorized host' }, { status: 403 });
 
     // Kết thúc thời gian trả lời bằng cách đặt deadline về quá khứ
-    if (room.questionDeadline && room.questionDeadline > Date.now()) {
-      room.questionDeadline = Date.now() - 1;
+    const deadline = typeof room.questionDeadline === 'number' ? room.questionDeadline : room.questionDeadline?.toMillis?.();
+    if (deadline && deadline > Date.now()) {
+      await roomRef.update({ questionDeadline: Date.now() - 1 });
     }
     await persistRoom(room);
 
