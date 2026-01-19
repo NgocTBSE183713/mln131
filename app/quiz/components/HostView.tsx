@@ -74,24 +74,6 @@ export default function HostView() {
     return fallback;
   }, []);
 
-  const rehydrateRoom = useCallback(
-    async (code: string, secret: string) => {
-      try {
-        const res = await fetch('/api/rooms/rehydrate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomCode: code, hostSecret: secret, quiz: quizPayload }),
-        });
-        if (!res.ok) return false;
-        localStorage.setItem('quiz-host-room', JSON.stringify({ roomCode: code, hostSecret: secret }));
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [quizPayload]
-  );
-
   const createRoom = useCallback(async () => {
     setError(null);
     setLoading(true);
@@ -135,6 +117,24 @@ export default function HostView() {
       setLoading(false);
     }
   }, [quizPayload, readJsonSafe, getErrorMessage]);
+
+  const rehydrateRoom = useCallback(
+    async (code: string, secret: string) => {
+      try {
+        const res = await fetch('/api/rooms/rehydrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomCode: code, hostSecret: secret }),
+        });
+        if (!res.ok) return false;
+        localStorage.setItem('quiz-host-room', JSON.stringify({ roomCode: code, hostSecret: secret }));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    []
+  );
 
   const fetchRoomState = useCallback(async (code: string) => {
     const res = await fetch(`/api/rooms/${code}/state`);

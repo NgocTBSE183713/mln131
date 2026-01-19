@@ -171,11 +171,13 @@ export default function PlayerView() {
 
     const code = roomCodeInput.toUpperCase();
     const roomRef = doc(clientDb, 'rooms', code);
-    const unsubscribe = onSnapshot(roomRef, (snap) => {
-      if (!snap.exists()) {
-        setError('Phòng không tồn tại hoặc đã hết hạn. Vui lòng kiểm tra mã phòng.');
-        return;
-      }
+    const unsubscribe = onSnapshot(
+      roomRef,
+      (snap) => {
+        if (!snap.exists()) {
+          setError('Phòng không tồn tại hoặc đã hết hạn. Vui lòng kiểm tra mã phòng.');
+          return;
+        }
 
       const room = snap.data() as any;
       setStatus(room.status ?? 'lobby');
@@ -236,7 +238,12 @@ export default function PlayerView() {
           setShowingResult(true);
         }
       }
-    });
+    },
+      (err) => {
+        console.warn('Player snapshot error', err);
+        setError('Mất kết nối realtime, đang thử lại...');
+      }
+    );
 
     return () => {
       unsubscribe();
