@@ -29,7 +29,6 @@ export async function POST(req: Request, ctx: ParamsPromise) {
     if (deadline && deadline > Date.now()) {
       await roomRef.update({ questionDeadline: Date.now() - 1 });
     }
-    await persistRoom(room);
 
     return NextResponse.json({ ok: true, message: 'Question ended' });
   } catch (error: any) {

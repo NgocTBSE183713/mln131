@@ -3,16 +3,6 @@ import { adminDb, adminInitError } from '@/lib/firebaseAdmin';
 
 type ParamsPromise = { params: { code: string } } | { params: Promise<{ code: string }> };
 
-// Đảm bảo chỉ một advance chạy tại một thời điểm cho mỗi room
-const advanceLocks = new Map<string, Promise<any>>();
-
-function runExclusive<T>(code: string, fn: () => Promise<T>): Promise<T> {
-  const prev = advanceLocks.get(code) ?? Promise.resolve();
-  const next = prev.then(fn, fn);
-  advanceLocks.set(code, next.catch(() => {}));
-  return next;
-}
-
 export async function POST(req: Request, ctx: ParamsPromise) {
   try {
     if (!adminDb) {

@@ -153,24 +153,6 @@ export default function HostView() {
     return { ok: res.ok, status: res.status };
   }, [readJsonSafe]);
 
-  const rehydrateRoom = useCallback(
-    async (code: string, secret: string) => {
-      try {
-        const res = await fetch('/api/rooms/rehydrate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomCode: code, hostSecret: secret, quiz: quizPayload }),
-        });
-        if (!res.ok) return false;
-        localStorage.setItem('quiz-host-room', JSON.stringify({ roomCode: code, hostSecret: secret }));
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [quizPayload]
-  );
-
   useEffect(() => {
     const restoreRoom = async () => {
       try {
@@ -294,7 +276,7 @@ export default function HostView() {
         pollRef.current = null;
       }
     };
-  }, [roomCode, hostSecret, rehydrateRoom]);
+  }, [roomCode]);
 
   const startNextQuestion = async () => {
     if (!roomCode || !hostSecret) return;
