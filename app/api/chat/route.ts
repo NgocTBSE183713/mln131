@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     - Phân tích Dân chủ XHCN: Bản chất Chính trị, Kinh tế và Tư tưởng - Văn hóa.
 
     Phong cách trả lời:
-    - Chuyên sâu nhưng cô đọng: Phân tích có chiều sâu nhưng tránh viết rườm rà. Độ dài phản hồi cần duy trì trong khoảng 500-800 chữ để đảm bảo đủ ý mà không gây quá tải thông tin.
+    - Chuyên sâu nhưng cô đọng: Phân tích có chiều sâu nhưng tránh viết rườm rà. Độ dài phản hồi cần duy trì trong khoảng 500-1000 chữ để đảm bảo đủ ý mà không gây quá tải thông tin.
     - Cấu trúc chặt chẽ: 
       + Mở đầu: Tóm tắt trực tiếp vấn đề (1 đoạn).
       + Thân bài: Phân tích chi tiết các luận điểm chính bằng Markdown (sử dụng dấu gạch đầu dòng hoặc số thứ tự).
